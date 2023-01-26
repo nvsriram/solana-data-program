@@ -37,33 +37,6 @@ impl Processor {
                 let data_account = next_account_info(accounts_iter)?;
                 let system_program = next_account_info(accounts_iter)?;
 
-                // ensure authority is signer
-                if !authority.is_signer {
-                    return Err(DataAccountError::NotSigner.into());
-                }
-
-                // ensure authority is writeable
-                if !authority.is_writable {
-                    return Err(DataAccountError::NotWriteable.into());
-                }
-
-                // ensure data_account is signer
-                if !data_account.is_signer {
-                    return Err(DataAccountError::NotSigner.into());
-                }
-
-                // ensure data_account is writeable
-                if !data_account.is_writable {
-                    return Err(DataAccountError::NotWriteable.into());
-                }
-
-                // ensure system program is valid
-                if *system_program.key != SYSTEM_PROGRAM_ID {
-                    return Err(DataAccountError::InvalidSysProgram.into());
-                }
-
-                msg!("account checks passed");
-
                 // create initial state for data_account data
                 let account_data = DataAccountData {
                     data_type: 0,
@@ -126,8 +99,8 @@ impl Processor {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                let mut account_state =
-                    DataAccountState::try_from_slice(&data_account.try_borrow_mut_data()?)?;
+                let account_state =
+                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
                 if !account_state.initialized() {
@@ -139,20 +112,34 @@ impl Processor {
                     return Err(DataAccountError::InvalidAuthority.into());
                 }
 
-                // // ensure data_account has enough space
-                if data_account.data_len() < args.data.len() {
+                msg!("account_state: {:?}", account_state);
+
+                // ensure account_data has enough space
+                let account_data = account_state.data();
+                if account_data.data.len() < args.data.len() {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                // update data_account data_type and data
-                let account_data = account_state.data_mut();
-                account_data.data_type = args.data_type;
-                account_data.data.copy_from_slice(&args.data);
+                // update data_account with new account_data
+                let mut new_data = vec![0; account_data.data.capacity()];
+                new_data[..args.data.len()].copy_from_slice(&args.data);
+                let new_account_data = DataAccountData {
+                    data_type: args.data_type,
+                    data: new_data,
+                };
+                let new_account_state =
+                    DataAccountState::new_with_account_data(account_state, new_account_data);
+                new_account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
+
+                msg!(
+                    "data: {:?}",
+                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
+                );
 
                 Ok(())
             }
-            DataAccountInstruction::UpdateDataAccountType(args) => {
-                msg!("Instruction: UpdateDataAccountType");
+            DataAccountInstruction::UpdateDataAccountDataType(args) => {
+                msg!("Instruction: UpdateDataAccountDataType");
 
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
@@ -173,8 +160,8 @@ impl Processor {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                let mut account_state =
-                    DataAccountState::try_from_slice(&data_account.try_borrow_mut_data()?)?;
+                let account_state =
+                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
                 if !account_state.initialized() {
@@ -186,9 +173,17 @@ impl Processor {
                     return Err(DataAccountError::InvalidAuthority.into());
                 }
 
-                // update data_account data_type
-                let account_data = account_state.data_mut();
-                account_data.data_type = args.data_type;
+                msg!("account_state: {:?}", account_state);
+
+                // update data_account with new data_type
+                let new_account_state =
+                    DataAccountState::new_with_data_type(account_state, args.data_type);
+                new_account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
+
+                msg!(
+                    "data: {:?}",
+                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
+                );
 
                 Ok(())
             }
@@ -213,8 +208,8 @@ impl Processor {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                let mut account_state =
-                    DataAccountState::try_from_slice(&data_account.try_borrow_mut_data()?)?;
+                let account_state =
+                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
                 if !account_state.initialized() {
@@ -226,14 +221,24 @@ impl Processor {
                     return Err(DataAccountError::InvalidAuthority.into());
                 }
 
-                // // ensure data_account has enough space
-                if data_account.data_len() < args.data.len() {
+                msg!("account_state: {:?}", account_state);
+
+                // ensure account_data has enough space
+                let account_data = account_state.data();
+                if account_data.data.len() < args.data.len() {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                // update data_account data
-                let account_data = account_state.data_mut();
-                account_data.data.copy_from_slice(&args.data);
+                // update data_account with new data
+                let mut new_data = vec![0; account_data.data.capacity()];
+                new_data[..args.data.len()].copy_from_slice(&args.data);
+                let new_account_state = DataAccountState::new_with_data(account_state, new_data);
+                new_account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
+
+                msg!(
+                    "data: {:?}",
+                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
+                );
 
                 Ok(())
             }

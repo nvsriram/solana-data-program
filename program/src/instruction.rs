@@ -3,7 +3,7 @@ use shank::ShankInstruction;
 
 use crate::state::{
     InitializeDataAccountArgs, RemoveAccountArgs, UpdateDataAccountArgs, UpdateDataAccountDataArgs,
-    UpdateDataAccountTypeArgs,
+    UpdateDataAccountDataTypeArgs,
 };
 
 /// Instructions supported by the Data program.
@@ -26,7 +26,7 @@ pub enum DataAccountInstruction {
     /// Requires data account to be initialized previously
     #[account(0, signer, name = "authority", desc = "Authority account")]
     #[account(1, writable, name = "data", desc = "Data account")]
-    UpdateDataAccountType(UpdateDataAccountTypeArgs),
+    UpdateDataAccountDataType(UpdateDataAccountDataTypeArgs),
 
     /// This instruction updates the data stored in the data account corresponding to the authority
     /// Requires data account to be initialized previously

@@ -11,10 +11,14 @@ const {
 const BN = require("bn.js");
 
 const main = async () => {
-  var args = process.argv.slice(2);
-  const programId = new PublicKey(args[0]);
+  // var args = process.argv.slice(2);
+  // const programId = new PublicKey(args[0]);
+  const programId = new PublicKey(
+    "5b2wAxsRJP2c9p9bneJxtbHjXdtD2HggGYya3WBVtNbS"
+  );
 
-  const connection = new Connection("https://api.devnet.solana.com/");
+  // const connection = new Connection("https://api.devnet.solana.com/");
+  const connection = new Connection("http://localhost:8899");
 
   const feePayer = new Keypair();
   const dataAccount = new Keypair();
@@ -53,6 +57,9 @@ const main = async () => {
 
   const idx1 = Buffer.from(new Uint8Array([1]));
   const data_type = Buffer.from(new Uint8Array(new BN(5).toArray("le", 1)));
+  const data_len = Buffer.from(
+    new Uint8Array(new BN(message.length).toArray("le", 4))
+  );
   const data = Buffer.from(message, "ascii");
   let updateIx = new TransactionInstruction({
     keys: [
@@ -68,7 +75,7 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx1, data_type, data]),
+    data: Buffer.concat([idx1, data_type, data_len, data]),
   });
 
   const idx2 = Buffer.from(new Uint8Array([2]));
@@ -93,7 +100,11 @@ const main = async () => {
   });
 
   const idx3 = Buffer.from(new Uint8Array([3]));
-  const new_data = Buffer.from("Hey there!", "ascii");
+  const new_message = "Hey there!";
+  const len = Buffer.from(
+    new Uint8Array(new BN(new_message.length).toArray("le", 4))
+  );
+  const new_data = Buffer.from(new_message, "ascii");
   let updateDataIx = new TransactionInstruction({
     keys: [
       {
@@ -108,7 +119,7 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx3, new_data]),
+    data: Buffer.concat([idx3, len, new_data]),
   });
 
   const idx4 = Buffer.from(new Uint8Array([4]));
@@ -135,10 +146,7 @@ const main = async () => {
   });
 
   let tx = new Transaction();
-  tx.add(initializeIx);
-  // .add(updateIx)
-  // .add(updateTypeIx)
-  // .add(updateDataIx)
+  tx.add(initializeIx).add(updateIx).add(updateTypeIx).add(updateDataIx);
   // .add(removeIx);
 
   let txid = await sendAndConfirmTransaction(
@@ -151,9 +159,11 @@ const main = async () => {
       confirmation: "confirmed",
     }
   );
-  console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+  // console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+  console.log(`https://explorer.solana.com/tx/${txid}?cluster=custom`);
 
-  info = (await connection.getAccountInfo(dataAccount.publicKey)).data;
+  info = (await connection.getAccountInfo(dataAccount.publicKey, "confirmed"))
+    .data;
   console.log("Data Account Data:", info.toString());
 };
 

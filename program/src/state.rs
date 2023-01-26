@@ -19,7 +19,7 @@ pub struct DataAccountState {
 }
 
 impl DataAccountState {
-    /// Constructor
+    /// Default constructor
     pub fn new(
         is_initialized: bool,
         authority: Pubkey,
@@ -31,6 +31,33 @@ impl DataAccountState {
             authority,
             data_version,
             account_data,
+        }
+    }
+    /// Constructor given account_data
+    pub fn new_with_account_data(copy: Self, account_data: DataAccountData) -> Self {
+        DataAccountState {
+            account_data,
+            ..copy
+        }
+    }
+    /// Constructor given data_type
+    pub fn new_with_data_type(copy: Self, data_type: u8) -> Self {
+        DataAccountState {
+            account_data: DataAccountData {
+                data_type,
+                ..copy.account_data
+            },
+            ..copy
+        }
+    }
+    /// Constructor given data
+    pub fn new_with_data(copy: Self, data: Vec<u8>) -> Self {
+        DataAccountState {
+            account_data: DataAccountData {
+                data,
+                ..copy.account_data
+            },
+            ..copy
         }
     }
     /// Signal initialized
@@ -75,7 +102,7 @@ pub struct UpdateDataAccountArgs {
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct UpdateDataAccountTypeArgs {
+pub struct UpdateDataAccountDataTypeArgs {
     pub data_type: u8,
 }
 
