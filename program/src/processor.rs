@@ -60,70 +60,59 @@ impl Processor {
                 msg!("signer and writable checks passed");
 
                 if !data_account.data_is_empty() {
-                    let account_state =
+                    let mut account_state =
                         DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                     // ensure data_account is not initialized
+                    msg!("Account is: {:?}", account_state);
                     if account_state.initialized() {
                         return Err(DataAccountError::AlreadyInitialized.into());
                     }
 
+                    account_state.set_initialized();
                     msg!("account_state: {} initialized", account_state.initialized());
+
+                    let serialized = account_state.try_to_vec()?;
+                    msg!("{:?}", serialized);
+                    let mut data = data_account.try_borrow_mut_data()?;
+                    data.copy_from_slice(&serialized);
+                    // account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
+                } else {
+                    panic!("No data available in data account");
+                    // ensure system program is valid
+                    // if *system_program.key != SYSTEM_PROGRAM_ID {
+                    //     return Err(DataAccountError::InvalidSysProgram.into());
+                    // }
+
+                    // // create initial state for data_account data
+                    // let account_data = DataAccountData {
+                    //     data_type: 0,
+                    //     data: vec![0; args.space as usize],
+                    // };
+                    // let account_state = DataAccountState::new(true, 1, account_data);
+
+                    // // create a data_account of given space
+                    // let space = (account_state.try_to_vec()?).len();
+                    // let rent_exemption_amount = Rent::get()?.minimum_balance(space);
+
+                    // msg!(
+                    //     "creating account with {} space and {} rent for metadata {}",
+                    //     space,
+                    //     rent_exemption_amount,
+                    //     METADATA_LENGTH
+                    // );
+
+                    // account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
+                    // msg!("account serialized: {:?}", data_account);
                 }
-
-                // ensure system program is valid
-                if *system_program.key != SYSTEM_PROGRAM_ID {
-                    return Err(DataAccountError::InvalidSysProgram.into());
-                }
-
-                // create initial state for data_account data
-                let account_data = DataAccountData {
-                    data_type: 0,
-                    data: vec![0; args.space as usize],
-                };
-                let account_state = DataAccountState::new(true, 1, account_data);
-
-                // create a data_account of given space
-                let space = (account_state.try_to_vec()?).len();
-                let rent_exemption_amount = Rent::get()?.minimum_balance(space);
-
-                msg!(
-                    "creating account with {} space and {} rent for metadata {}",
-                    space,
-                    rent_exemption_amount,
-                    METADATA_LENGTH
-                );
-
-                msg!("account currently: {:?}", data_account);
-
-                let create_account_ix = system_instruction::create_account(
-                    &authority.key,
-                    &data_account.key,
-                    rent_exemption_amount,
-                    space as u64,
-                    &authority.key,
-                );
-                msg!("account created!");
-
-                invoke(
-                    &create_account_ix,
-                    &[
-                        authority.clone(),
-                        data_account.clone(),
-                        system_program.clone(),
-                    ],
-                )?;
-
-                msg!("account invoked! {:?}", data_account);
 
                 // write to data_account data
-                account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
 
-                msg!("account now: {:?}", data_account);
-                msg!(
-                    "data_account: {:?} initialized successfully!",
-                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
-                );
+                // msg!("account now: {:?}", data_account);
+                // msg!(
+                //     "data_account: {:?} initialized successfully!",
+                //     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
+                // );
 
                 Ok(())
             }

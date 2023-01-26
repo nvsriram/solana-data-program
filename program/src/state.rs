@@ -1,13 +1,38 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{maybestd::io::ErrorKind, BorshDeserialize, BorshSerialize};
 use shank::ShankAccount;
 use std::mem::size_of;
 
 pub const METADATA_LENGTH: u64 = size_of::<DataAccountState>() as u64;
 
-#[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, BorshSerialize, PartialEq, Eq)]
 pub struct DataAccountData {
     pub data_type: u8,
     pub data: Vec<u8>,
+}
+
+impl BorshDeserialize for DataAccountData {
+    #[inline]
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, std::io::Error> {
+        solana_program::msg!("Deserializing DataAccountData");
+        let data_type = u8::deserialize(buf).map_err(|_| ErrorKind::Unsupported)?;
+        solana_program::msg!("Data Type: {}", data_type);
+
+        let len = u32::deserialize(buf).map_err(|_| ErrorKind::Unsupported)?;
+        solana_program::msg!("Len: {}", data_type);
+
+        if len == 0 {
+            let capacity = buf.len();
+            *buf = &buf[buf.len()..];
+            Ok(DataAccountData {
+                data_type,
+                data: vec![0; capacity],
+            })
+        } else {
+            // TODO(16): return capacity allocation when we can safely do that.
+            let data = buf.to_vec().clone();
+            Ok(DataAccountData { data_type, data })
+        }
+    }
 }
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, ShankAccount)]

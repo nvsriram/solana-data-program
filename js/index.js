@@ -11,10 +11,12 @@ const {
 const BN = require("bn.js");
 
 const main = async () => {
-  var args = process.argv.slice(2);
-  const programId = new PublicKey(args[0]);
+  // var args = process.argv.slice(2);
+  // const programId = new PublicKey(args[0]);
+  const programId = new PublicKey("4p6vAUr31NijrPdXmAKhCCXFJDcHTRoinwwk76iSqcX7");
 
-  const connection = new Connection("https://api.devnet.solana.com/");
+  // const connection = new Connection("https://api.devnet.solana.com/");
+  const connection = new Connection("http://localhost:8899 ");
 
   const feePayer = new Keypair();
   const dataAccount = new Keypair();
@@ -26,8 +28,10 @@ const main = async () => {
   const message = "Hello World!";
 
   const idx0 = Buffer.from(new Uint8Array([0]));
+  const spaceRaw = message.length;
+  console.log("Space Raw:", spaceRaw);
   const space = Buffer.from(
-    new Uint8Array(new BN(message.length).toArray("le", 8))
+    new Uint8Array(new BN(spaceRaw).toArray("le", 8))
   );
   let initializeIx = new TransactionInstruction({
     keys: [
@@ -135,7 +139,18 @@ const main = async () => {
   });
 
   let tx = new Transaction();
-  tx.add(initializeIx);
+  console.log("Creating Data Account...", space);
+  tx.add(
+    SystemProgram.createAccount({
+      fromPubkey: feePayer.publicKey,
+      newAccountPubkey: dataAccount.publicKey,
+      lamports: await connection.getMinimumBalanceForRentExemption(
+        spaceRaw,
+      ),
+      space: spaceRaw,
+      programId,
+    })
+  ).add(initializeIx);
   // .add(updateIx)
   // .add(updateTypeIx)
   // .add(updateDataIx)
@@ -151,9 +166,9 @@ const main = async () => {
       confirmation: "confirmed",
     }
   );
-  console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+  console.log(`https://explorer.solana.com/tx/${txid}?cluster=custom`);
 
-  data = (await connection.getAccountInfo(dataAccount.publicKey)).data;
+  data = (await connection.getAccountInfo(dataAccount.publicKey, "confirmed")).data;
   console.log("Data Account Data:", data.toString());
 };
 
