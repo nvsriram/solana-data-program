@@ -14,14 +14,14 @@ use solana_program::{
 use crate::{
     error::DataAccountError,
     instruction::DataAccountInstruction,
-    state::{DataAccountData, DataAccountState, METADATA_LENGTH},
+    state::{DataAccountData, DataAccountState},
 };
 
 pub struct Processor {}
 
 impl Processor {
     pub fn process_instruction(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
@@ -57,54 +57,33 @@ impl Processor {
                     return Err(DataAccountError::NotWriteable.into());
                 }
 
-                msg!("signer and writable checks passed");
-
-                if !data_account.data_is_empty() {
-                    let account_state =
-                        DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
-
-                    // ensure data_account is not initialized
-                    if account_state.initialized() {
-                        return Err(DataAccountError::AlreadyInitialized.into());
-                    }
-
-                    msg!("account_state: {} initialized", account_state.initialized());
-                }
-
                 // ensure system program is valid
                 if *system_program.key != SYSTEM_PROGRAM_ID {
                     return Err(DataAccountError::InvalidSysProgram.into());
                 }
+
+                msg!("account checks passed");
 
                 // create initial state for data_account data
                 let account_data = DataAccountData {
                     data_type: 0,
                     data: vec![0; args.space as usize],
                 };
-                let account_state = DataAccountState::new(true, 1, account_data);
+                let account_state = DataAccountState::new(true, *authority.key, 1, account_data);
 
                 // create a data_account of given space
                 let space = (account_state.try_to_vec()?).len();
                 let rent_exemption_amount = Rent::get()?.minimum_balance(space);
 
-                msg!(
-                    "creating account with {} space and {} rent for metadata {}",
-                    space,
-                    rent_exemption_amount,
-                    METADATA_LENGTH
-                );
-
-                msg!("account currently: {:?}", data_account);
+                msg!("creating account with {} space", space);
 
                 let create_account_ix = system_instruction::create_account(
                     &authority.key,
                     &data_account.key,
                     rent_exemption_amount,
                     space as u64,
-                    &authority.key,
+                    &program_id,
                 );
-                msg!("account created!");
-
                 invoke(
                     &create_account_ix,
                     &[
@@ -114,14 +93,13 @@ impl Processor {
                     ],
                 )?;
 
-                msg!("account invoked! {:?}", data_account);
+                msg!("account created: {:?}", data_account);
 
                 // write to data_account data
                 account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
 
-                msg!("account now: {:?}", data_account);
                 msg!(
-                    "data_account: {:?} initialized successfully!",
+                    "data: {:?}",
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
                 );
 
@@ -138,11 +116,6 @@ impl Processor {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
-                // ensure data_account is being written to by valid authority
-                if data_account.owner != authority.key {
-                    return Err(DataAccountError::InvalidSysProgram.into());
-                }
-
                 // ensure data_account is writeable
                 if !data_account.is_writable {
                     return Err(DataAccountError::NotWriteable.into());
@@ -153,17 +126,22 @@ impl Processor {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                // ensure data_account has enough space
-                if data_account.data_len() < args.data.len() {
-                    return Err(DataAccountError::NoAccountLength.into());
-                }
-
                 let mut account_state =
                     DataAccountState::try_from_slice(&data_account.try_borrow_mut_data()?)?;
 
                 // ensure data_account is initialized
                 if !account_state.initialized() {
                     return Err(DataAccountError::NotInitialized.into());
+                }
+
+                // ensure data_account is being written to by valid authority
+                if account_state.authority() != authority.key {
+                    return Err(DataAccountError::InvalidAuthority.into());
+                }
+
+                // // ensure data_account has enough space
+                if data_account.data_len() < args.data.len() {
+                    return Err(DataAccountError::NoAccountLength.into());
                 }
 
                 // update data_account data_type and data
@@ -185,11 +163,6 @@ impl Processor {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
-                // ensure data_account is being written to by valid authority
-                if data_account.owner != authority.key {
-                    return Err(DataAccountError::InvalidSysProgram.into());
-                }
-
                 // ensure data_account is writeable
                 if !data_account.is_writable {
                     return Err(DataAccountError::NotWriteable.into());
@@ -206,6 +179,11 @@ impl Processor {
                 // ensure data_account is initialized
                 if !account_state.initialized() {
                     return Err(DataAccountError::NotInitialized.into());
+                }
+
+                // ensure data_account is being written to by valid authority
+                if account_state.authority() != authority.key {
+                    return Err(DataAccountError::InvalidAuthority.into());
                 }
 
                 // update data_account data_type
@@ -225,11 +203,6 @@ impl Processor {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
-                // ensure data_account is being written to by valid authority
-                if data_account.owner != authority.key {
-                    return Err(DataAccountError::InvalidSysProgram.into());
-                }
-
                 // ensure data_account is writeable
                 if !data_account.is_writable {
                     return Err(DataAccountError::NotWriteable.into());
@@ -240,17 +213,22 @@ impl Processor {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                // ensure data_account has enough space
-                if data_account.data_len() < args.data.len() {
-                    return Err(DataAccountError::NoAccountLength.into());
-                }
-
                 let mut account_state =
                     DataAccountState::try_from_slice(&data_account.try_borrow_mut_data()?)?;
 
                 // ensure data_account is initialized
                 if !account_state.initialized() {
                     return Err(DataAccountError::NotInitialized.into());
+                }
+
+                // ensure data_account is being written to by valid authority
+                if account_state.authority() != authority.key {
+                    return Err(DataAccountError::InvalidAuthority.into());
+                }
+
+                // // ensure data_account has enough space
+                if data_account.data_len() < args.data.len() {
+                    return Err(DataAccountError::NoAccountLength.into());
                 }
 
                 // update data_account data

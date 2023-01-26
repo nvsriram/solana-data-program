@@ -153,8 +153,8 @@ const main = async () => {
   );
   console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
 
-  data = (await connection.getAccountInfo(dataAccount.publicKey)).data;
-  console.log("Data Account Data:", data.toString());
+  info = (await connection.getAccountInfo(dataAccount.publicKey)).data;
+  console.log("Data Account Data:", info.toString());
 };
 
 main()

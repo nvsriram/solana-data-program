@@ -1,8 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use shank::ShankAccount;
-use std::mem::size_of;
+use solana_program::pubkey::Pubkey;
 
-pub const METADATA_LENGTH: u64 = size_of::<DataAccountState>() as u64;
+pub const METADATA_LENGTH: u64 = 11;
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct DataAccountData {
@@ -13,15 +13,22 @@ pub struct DataAccountData {
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, ShankAccount)]
 pub struct DataAccountState {
     is_initialized: bool,
+    authority: Pubkey,
     data_version: u8,
     account_data: DataAccountData,
 }
 
 impl DataAccountState {
     /// Constructor
-    pub fn new(is_initialized: bool, data_version: u8, account_data: DataAccountData) -> Self {
+    pub fn new(
+        is_initialized: bool,
+        authority: Pubkey,
+        data_version: u8,
+        account_data: DataAccountData,
+    ) -> Self {
         DataAccountState {
             is_initialized,
+            authority,
             data_version,
             account_data,
         }
@@ -37,6 +44,10 @@ impl DataAccountState {
     /// Get the initialized flag
     pub fn initialized(&self) -> bool {
         self.is_initialized
+    }
+    /// Get the authority
+    pub fn authority(&self) -> &Pubkey {
+        &self.authority
     }
     /// Gets the current data version
     pub fn version(&self) -> u8 {
