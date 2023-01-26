@@ -14,14 +14,14 @@ use solana_program::{
 use crate::{
     error::DataAccountError,
     instruction::DataAccountInstruction,
-    state::{DataAccountData, DataAccountState, METADATA_LENGTH},
+    state::{calculate_data_account_size, DataAccountData, DataAccountState, METADATA_LENGTH},
 };
 
 pub struct Processor {}
 
 impl Processor {
     pub fn process_instruction(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
@@ -58,6 +58,24 @@ impl Processor {
                 }
 
                 msg!("signer and writable checks passed");
+
+                let space = calculate_data_account_size(args.space as u64);
+                let create_account_ix = system_instruction::create_account(
+                    &authority.key,
+                    &data_account.key,
+                    Rent::get()?.minimum_balance(space as usize),
+                    space as u64,
+                    &program_id,
+                );
+                invoke(
+                    &create_account_ix,
+                    &[
+                        authority.clone(),
+                        data_account.clone(),
+                        system_program.clone(),
+                    ],
+                )?;
+                msg!("account created!");
 
                 if !data_account.data_is_empty() {
                     let mut account_state =

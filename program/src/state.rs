@@ -4,6 +4,11 @@ use std::mem::size_of;
 
 pub const METADATA_LENGTH: u64 = size_of::<DataAccountState>() as u64;
 
+/// Calculates space required for data account
+pub fn calculate_data_account_size(data_space: u64) -> u64 {
+    7 + data_space
+}
+
 #[derive(Debug, Clone, BorshSerialize, PartialEq, Eq)]
 pub struct DataAccountData {
     pub data_type: u8,

@@ -140,17 +140,17 @@ const main = async () => {
 
   let tx = new Transaction();
   console.log("Creating Data Account...", space);
-  tx.add(
-    SystemProgram.createAccount({
-      fromPubkey: feePayer.publicKey,
-      newAccountPubkey: dataAccount.publicKey,
-      lamports: await connection.getMinimumBalanceForRentExemption(
-        spaceRaw,
-      ),
-      space: spaceRaw,
-      programId,
-    })
-  ).add(initializeIx);
+  // tx.add(
+  //   SystemProgram.createAccount({
+  //     fromPubkey: feePayer.publicKey,
+  //     newAccountPubkey: dataAccount.publicKey,
+  //     lamports: await connection.getMinimumBalanceForRentExemption(
+  //       spaceRaw,
+  //     ),
+  //     space: spaceRaw,
+  //     programId,
+  //   })
+  tx.add(initializeIx);
   // .add(updateIx)
   // .add(updateTypeIx)
   // .add(updateDataIx)
