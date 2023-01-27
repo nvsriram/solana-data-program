@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use shank::ShankAccount;
 use solana_program::pubkey::Pubkey;
 
-pub const METADATA_LENGTH: u64 = 11;
+pub const DATA_VERSION: u8 = 0;
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct DataAccountData {
@@ -112,4 +112,4 @@ pub struct UpdateDataAccountDataArgs {
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct RemoveAccountArgs {}
+pub struct CloseAccountArgs {}

@@ -7,14 +7,13 @@ use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
     system_instruction,
-    system_program::ID as SYSTEM_PROGRAM_ID,
     sysvar::{rent::Rent, Sysvar},
 };
 
 use crate::{
     error::DataAccountError,
     instruction::DataAccountInstruction,
-    state::{DataAccountData, DataAccountState},
+    state::{DataAccountData, DataAccountState, DATA_VERSION},
 };
 
 pub struct Processor {}
@@ -42,7 +41,8 @@ impl Processor {
                     data_type: 0,
                     data: vec![0; args.space as usize],
                 };
-                let account_state = DataAccountState::new(true, *authority.key, 1, account_data);
+                let account_state =
+                    DataAccountState::new(true, *authority.key, DATA_VERSION, account_data);
 
                 // create a data_account of given space
                 let space = (account_state.try_to_vec()?).len();
@@ -83,6 +83,7 @@ impl Processor {
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
+                let system_program = next_account_info(accounts_iter)?;
 
                 // ensure authority is signer
                 if !authority.is_signer {
@@ -114,14 +115,12 @@ impl Processor {
 
                 msg!("account_state: {:?}", account_state);
 
-                // ensure account_data has enough space
                 let account_data = account_state.data();
-                if account_data.data.len() < args.data.len() {
-                    return Err(DataAccountError::NoAccountLength.into());
-                }
+                let old_len = account_data.data.len();
+                let new_len = args.data.len().max(old_len);
 
-                // update data_account with new account_data
-                let mut new_data = vec![0; account_data.data.capacity()];
+                // update data_account with new data
+                let mut new_data = vec![0; new_len];
                 new_data[..args.data.len()].copy_from_slice(&args.data);
                 let new_account_data = DataAccountData {
                     data_type: args.data_type,
@@ -129,6 +128,36 @@ impl Processor {
                 };
                 let new_account_state =
                     DataAccountState::new_with_account_data(account_state, new_account_data);
+
+                // ensure account_data has enough space by reallocing if needed
+                if old_len < new_len {
+                    let new_space = (new_account_state.try_to_vec()?).len();
+                    let new_minimum_balance = Rent::get()?.minimum_balance(new_space);
+                    let lamports_diff = new_minimum_balance.saturating_sub(data_account.lamports());
+
+                    let transfer_ix = system_instruction::transfer(
+                        authority.key,
+                        data_account.key,
+                        lamports_diff,
+                    );
+                    invoke(
+                        &transfer_ix,
+                        &[
+                            authority.clone(),
+                            data_account.clone(),
+                            system_program.clone(),
+                        ],
+                    )?;
+                    data_account.realloc(new_space, false)?;
+
+                    msg!(
+                        "transferred {} and realloc-ed {} as {} < {}",
+                        lamports_diff,
+                        new_space,
+                        old_len,
+                        new_len
+                    );
+                }
                 new_account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
 
                 msg!(
@@ -192,6 +221,7 @@ impl Processor {
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
+                let system_program = next_account_info(accounts_iter)?;
 
                 // ensure authority is signer
                 if !authority.is_signer {
@@ -223,16 +253,45 @@ impl Processor {
 
                 msg!("account_state: {:?}", account_state);
 
-                // ensure account_data has enough space
                 let account_data = account_state.data();
-                if account_data.data.len() < args.data.len() {
-                    return Err(DataAccountError::NoAccountLength.into());
-                }
+                let old_len = account_data.data.len();
+                let new_len = args.data.len().max(old_len);
 
                 // update data_account with new data
-                let mut new_data = vec![0; account_data.data.capacity()];
+                let mut new_data = vec![0; new_len];
                 new_data[..args.data.len()].copy_from_slice(&args.data);
                 let new_account_state = DataAccountState::new_with_data(account_state, new_data);
+
+                // ensure account_data has enough space by reallocing if needed
+                if old_len < new_len {
+                    let new_space = (new_account_state.try_to_vec()?).len();
+                    let new_minimum_balance = Rent::get()?.minimum_balance(new_space);
+                    let lamports_diff = new_minimum_balance.saturating_sub(data_account.lamports());
+
+                    let transfer_ix = system_instruction::transfer(
+                        authority.key,
+                        data_account.key,
+                        lamports_diff,
+                    );
+                    invoke(
+                        &transfer_ix,
+                        &[
+                            authority.clone(),
+                            data_account.clone(),
+                            system_program.clone(),
+                        ],
+                    )?;
+                    data_account.realloc(new_space, false)?;
+
+                    msg!(
+                        "transferred {} and realloc-ed {} as {} < {}",
+                        lamports_diff,
+                        new_space,
+                        old_len,
+                        new_len
+                    );
+                }
+
                 new_account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
 
                 msg!(
@@ -242,13 +301,12 @@ impl Processor {
 
                 Ok(())
             }
-            DataAccountInstruction::RemoveAccount(_args) => {
+            DataAccountInstruction::CloseAccount(_args) => {
                 msg!("Instruction: RemoveAccount");
 
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
-                let system_program = next_account_info(accounts_iter)?;
 
                 // ensure authority is writeable
                 if !authority.is_writable {
@@ -265,35 +323,38 @@ impl Processor {
                     return Err(DataAccountError::NotWriteable.into());
                 }
 
-                // ensure data_account is being removed by valid authority
-                if data_account.owner != authority.key {
-                    return Err(DataAccountError::InvalidSysProgram.into());
+                // ensure length is not 0
+                if data_account.data_is_empty() {
+                    return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                // ensure system program is valid
-                if *system_program.key != SYSTEM_PROGRAM_ID {
-                    return Err(DataAccountError::InvalidSysProgram.into());
+                let account_state =
+                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
+
+                // ensure data_account is initialized
+                if !account_state.initialized() {
+                    return Err(DataAccountError::NotInitialized.into());
                 }
 
-                // transfer data_account lamports back to authority
-                let transfer_ix = system_instruction::transfer(
-                    &data_account.key,
-                    &authority.key,
-                    data_account.lamports(),
-                );
+                // ensure data_account is being closed by valid authority
+                if account_state.authority() != authority.key {
+                    return Err(DataAccountError::InvalidAuthority.into());
+                }
 
-                invoke(
-                    &transfer_ix,
-                    &[
-                        data_account.clone(),
-                        authority.clone(),
-                        system_program.clone(),
-                    ],
-                )?;
+                msg!("authority: {:?}", authority);
+                msg!("data_account: {:?}", data_account);
 
-                // zero out data_account.data
-                let mut data_account_data = data_account.try_borrow_mut_data()?;
-                data_account_data.fill(0);
+                // transfer data_account lamports back to authority and reset data_account
+                let curr_lamports = authority.lamports();
+                **authority.lamports.borrow_mut() = curr_lamports
+                    .checked_add(data_account.lamports())
+                    .ok_or(DataAccountError::Overflow)?;
+                **data_account.lamports.borrow_mut() = 0;
+                data_account.data.borrow_mut().fill(0);
+
+                msg!("transferred lamports to authority");
+                msg!("authority: {:?}", authority);
+                msg!("data_account: {:?}", data_account);
 
                 Ok(())
             }

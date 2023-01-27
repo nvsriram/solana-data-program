@@ -14,7 +14,7 @@ const main = async () => {
   // var args = process.argv.slice(2);
   // const programId = new PublicKey(args[0]);
   const programId = new PublicKey(
-    "5b2wAxsRJP2c9p9bneJxtbHjXdtD2HggGYya3WBVtNbS"
+    "4tn7eK55caxuChxU88crkiLZwP9fUEfGueM8cLz5Cgcf"
   );
 
   // const connection = new Connection("https://api.devnet.solana.com/");
@@ -31,19 +31,19 @@ const main = async () => {
 
   const idx0 = Buffer.from(new Uint8Array([0]));
   const space = Buffer.from(
-    new Uint8Array(new BN(message.length).toArray("le", 8))
+    new Uint8Array(new BN(message.length - 5).toArray("le", 8))
   );
   let initializeIx = new TransactionInstruction({
     keys: [
       {
         pubkey: feePayer.publicKey,
         isSigner: true,
-        isWritable: true,
+        isWritable: false,
       },
       {
         pubkey: dataAccount.publicKey,
         isSigner: true,
-        isWritable: true,
+        isWritable: false,
       },
       {
         pubkey: SystemProgram.programId,
@@ -72,6 +72,11 @@ const main = async () => {
         pubkey: dataAccount.publicKey,
         isSigner: false,
         isWritable: true,
+      },
+      {
+        pubkey: SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
       },
     ],
     programId: programId,
@@ -117,6 +122,11 @@ const main = async () => {
         isSigner: false,
         isWritable: true,
       },
+      {
+        pubkey: SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
+      },
     ],
     programId: programId,
     data: Buffer.concat([idx3, len, new_data]),
@@ -135,19 +145,17 @@ const main = async () => {
         isSigner: true,
         isWritable: true,
       },
-      {
-        pubkey: SystemProgram.programId,
-        isSigner: false,
-        isWritable: false,
-      },
     ],
     programId: programId,
     data: Buffer.concat([idx4]),
   });
 
   let tx = new Transaction();
-  tx.add(initializeIx).add(updateIx).add(updateTypeIx).add(updateDataIx);
-  // .add(removeIx);
+  tx.add(initializeIx)
+    .add(updateIx)
+    .add(updateTypeIx)
+    .add(updateDataIx)
+    .add(removeIx);
 
   let txid = await sendAndConfirmTransaction(
     connection,
@@ -162,9 +170,8 @@ const main = async () => {
   // console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
   console.log(`https://explorer.solana.com/tx/${txid}?cluster=custom`);
 
-  info = (await connection.getAccountInfo(dataAccount.publicKey, "confirmed"))
-    .data;
-  console.log("Data Account Data:", info.toString());
+  info = await connection.getAccountInfo(dataAccount.publicKey, "confirmed");
+  console.log("Data Account Data:", info);
 };
 
 main()

@@ -24,6 +24,8 @@ pub enum DataAccountError {
     AlreadyInitialized,
     #[error("Data account should be initialized")]
     NotInitialized,
+    #[error("Operation overflowed")]
+    Overflow,
 }
 
 impl From<DataAccountError> for ProgramError {
