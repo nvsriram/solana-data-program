@@ -90,6 +90,16 @@ impl Processor {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
+                // ensure authority is writable
+                if !authority.is_writable {
+                    return Err(DataAccountError::NotWriteable.into());
+                }
+
+                // ensure data_account is signer
+                if !data_account.is_signer {
+                    return Err(DataAccountError::NotSigner.into());
+                }
+
                 // ensure data_account is writeable
                 if !data_account.is_writable {
                     return Err(DataAccountError::NotWriteable.into());
@@ -115,49 +125,60 @@ impl Processor {
 
                 msg!("account_state: {:?}", account_state);
 
-                let account_data = account_state.data();
-                let old_len = account_data.data.len();
-                let new_len = args.data.len().max(old_len);
+                let old_len = account_state.data().data.len();
+                let new_len = args.data.len();
 
-                // update data_account with new data
-                let mut new_data = vec![0; new_len];
-                new_data[..args.data.len()].copy_from_slice(&args.data);
+                // update data_account with new account_data
                 let new_account_data = DataAccountData {
                     data_type: args.data_type,
-                    data: new_data,
+                    data: args.data,
                 };
                 let new_account_state =
                     DataAccountState::new_with_account_data(account_state, new_account_data);
 
                 // ensure account_data has enough space by reallocing if needed
-                if old_len < new_len {
+                if old_len != new_len {
                     let new_space = (new_account_state.try_to_vec()?).len();
                     let new_minimum_balance = Rent::get()?.minimum_balance(new_space);
-                    let lamports_diff = new_minimum_balance.saturating_sub(data_account.lamports());
+                    let lamports_diff = if old_len < new_len {
+                        new_minimum_balance.saturating_sub(data_account.lamports())
+                    } else {
+                        data_account.lamports().saturating_sub(new_minimum_balance)
+                    };
 
-                    let transfer_ix = system_instruction::transfer(
-                        authority.key,
-                        data_account.key,
-                        lamports_diff,
-                    );
-                    invoke(
-                        &transfer_ix,
-                        &[
-                            authority.clone(),
-                            data_account.clone(),
-                            system_program.clone(),
-                        ],
-                    )?;
+                    if old_len < new_len {
+                        let transfer_ix = system_instruction::transfer(
+                            authority.key,
+                            data_account.key,
+                            lamports_diff,
+                        );
+                        invoke(
+                            &transfer_ix,
+                            &[
+                                authority.clone(),
+                                data_account.clone(),
+                                system_program.clone(),
+                            ],
+                        )?;
+                    } else {
+                        let authority_lamports = authority.lamports();
+                        **authority.lamports.borrow_mut() = authority_lamports
+                            .checked_add(lamports_diff)
+                            .ok_or(DataAccountError::Overflow)?;
+                        **data_account.lamports.borrow_mut() = new_minimum_balance;
+                    }
+
                     data_account.realloc(new_space, false)?;
 
                     msg!(
-                        "transferred {} and realloc-ed {} as {} < {}",
+                        "transferred {} and realloc-ed {} as old:{} != new:{}",
                         lamports_diff,
                         new_space,
                         old_len,
                         new_len
                     );
                 }
+
                 new_account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
 
                 msg!(
@@ -228,6 +249,16 @@ impl Processor {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
+                // ensure authority is writable
+                if !authority.is_writable {
+                    return Err(DataAccountError::NotWriteable.into());
+                }
+
+                // ensure data_account is signer
+                if !data_account.is_signer {
+                    return Err(DataAccountError::NotSigner.into());
+                }
+
                 // ensure data_account is writeable
                 if !data_account.is_writable {
                     return Err(DataAccountError::NotWriteable.into());
@@ -253,38 +284,48 @@ impl Processor {
 
                 msg!("account_state: {:?}", account_state);
 
-                let account_data = account_state.data();
-                let old_len = account_data.data.len();
-                let new_len = args.data.len().max(old_len);
+                let old_len = account_state.data().data.len();
+                let new_len = args.data.len();
 
                 // update data_account with new data
-                let mut new_data = vec![0; new_len];
-                new_data[..args.data.len()].copy_from_slice(&args.data);
-                let new_account_state = DataAccountState::new_with_data(account_state, new_data);
+                let new_account_state = DataAccountState::new_with_data(account_state, args.data);
 
                 // ensure account_data has enough space by reallocing if needed
-                if old_len < new_len {
+                if old_len != new_len {
                     let new_space = (new_account_state.try_to_vec()?).len();
                     let new_minimum_balance = Rent::get()?.minimum_balance(new_space);
-                    let lamports_diff = new_minimum_balance.saturating_sub(data_account.lamports());
+                    let lamports_diff = if old_len < new_len {
+                        new_minimum_balance.saturating_sub(data_account.lamports())
+                    } else {
+                        data_account.lamports().saturating_sub(new_minimum_balance)
+                    };
 
-                    let transfer_ix = system_instruction::transfer(
-                        authority.key,
-                        data_account.key,
-                        lamports_diff,
-                    );
-                    invoke(
-                        &transfer_ix,
-                        &[
-                            authority.clone(),
-                            data_account.clone(),
-                            system_program.clone(),
-                        ],
-                    )?;
+                    if old_len < new_len {
+                        let transfer_ix = system_instruction::transfer(
+                            authority.key,
+                            data_account.key,
+                            lamports_diff,
+                        );
+                        invoke(
+                            &transfer_ix,
+                            &[
+                                authority.clone(),
+                                data_account.clone(),
+                                system_program.clone(),
+                            ],
+                        )?;
+                    } else {
+                        let authority_lamports = authority.lamports();
+                        **authority.lamports.borrow_mut() = authority_lamports
+                            .checked_add(lamports_diff)
+                            .ok_or(DataAccountError::Overflow)?;
+                        **data_account.lamports.borrow_mut() = new_minimum_balance;
+                    }
+
                     data_account.realloc(new_space, false)?;
 
                     msg!(
-                        "transferred {} and realloc-ed {} as {} < {}",
+                        "transferred {} and realloc-ed {} as old:{} != new:{}",
                         lamports_diff,
                         new_space,
                         old_len,

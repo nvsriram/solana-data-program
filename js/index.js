@@ -7,14 +7,13 @@ const {
   PublicKey,
   TransactionInstruction,
 } = require("@solana/web3.js");
-
 const BN = require("bn.js");
 
 const main = async () => {
   // var args = process.argv.slice(2);
   // const programId = new PublicKey(args[0]);
   const programId = new PublicKey(
-    "4tn7eK55caxuChxU88crkiLZwP9fUEfGueM8cLz5Cgcf"
+    "92ANfnQviCSVBUgSTMPgRy6AKmkGJoQpHbt8iJLjY6Q3"
   );
 
   // const connection = new Connection("https://api.devnet.solana.com/");
@@ -27,12 +26,11 @@ const main = async () => {
   await connection.requestAirdrop(feePayer.publicKey, 2e9);
   console.log("Airdrop received");
 
-  const message = "Hello World!";
+  const object = { message: "Hello World!", author: "Jane Doe" };
+  const message = JSON.stringify(object);
 
   const idx0 = Buffer.from(new Uint8Array([0]));
-  const space = Buffer.from(
-    new Uint8Array(new BN(message.length - 5).toArray("le", 8))
-  );
+  const space = Buffer.from(new Uint8Array(new BN(0).toArray("le", 8)));
   let initializeIx = new TransactionInstruction({
     keys: [
       {
@@ -66,11 +64,11 @@ const main = async () => {
       {
         pubkey: feePayer.publicKey,
         isSigner: true,
-        isWritable: false,
+        isWritable: true,
       },
       {
         pubkey: dataAccount.publicKey,
-        isSigner: false,
+        isSigner: true,
         isWritable: true,
       },
       {
@@ -105,7 +103,8 @@ const main = async () => {
   });
 
   const idx3 = Buffer.from(new Uint8Array([3]));
-  const new_message = "Hey there!";
+  const new_object = { message: "Hey there, Jane!", author: "John Doe" };
+  const new_message = JSON.stringify(new_object);
   const len = Buffer.from(
     new Uint8Array(new BN(new_message.length).toArray("le", 4))
   );
@@ -115,11 +114,11 @@ const main = async () => {
       {
         pubkey: feePayer.publicKey,
         isSigner: true,
-        isWritable: false,
+        isWritable: true,
       },
       {
         pubkey: dataAccount.publicKey,
-        isSigner: false,
+        isSigner: true,
         isWritable: true,
       },
       {
@@ -170,8 +169,7 @@ const main = async () => {
   // console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
   console.log(`https://explorer.solana.com/tx/${txid}?cluster=custom`);
 
-  info = await connection.getAccountInfo(dataAccount.publicKey, "confirmed");
-  console.log("Data Account Data:", info);
+  await parseJSON(connection, dataAccount.publicKey);
 };
 
 main()
@@ -181,3 +179,52 @@ main()
   .catch((e) => {
     console.error(e);
   });
+
+const parseJSON = async (connection, dataKey) => {
+  const data_account = await connection.getAccountInfo(dataKey, "confirmed");
+  console.log("Raw Data:");
+  console.log(data_account?.data);
+
+  if (data_account) {
+    // pub struct DataAccountData {
+    //   pub data_type: u8,
+    //   pub data: Vec<u8>,
+    // }
+    // pub struct DataAccountState {
+    //   is_initialized: bool,
+    //   authority: Pubkey,
+    //   data_version: u8,
+    //   account_data: DataAccountData,
+    // }
+
+    // Data Account State
+    const data_account_state = data_account.data;
+    const account_state = {};
+    account_state.is_initialized = data_account_state.slice(0, 1).readUInt8()
+      ? true
+      : false;
+    account_state.authority = new PublicKey(
+      data_account_state.slice(1, 33)
+    ).toBase58();
+    account_state.data_version = new BN(
+      data_account_state.slice(33, 34),
+      "le"
+    ).toNumber();
+    account_state.account_data = {};
+
+    // Data Account Data
+    account_data = data_account_state.slice(34);
+    account_state.account_data.data_type = new BN(
+      account_data.slice(0, 1),
+      "le"
+    ).toNumber();
+    account_state.account_data.data = {
+      len: new BN(account_data.slice(1, 5), "le").toNumber(),
+      data: JSON.parse(account_data.slice(5)),
+    };
+
+    console.log("Parsed Data:");
+    console.log(account_state);
+    console.log(JSON.stringify(account_state.account_data.data.data, null, 2));
+  }
+};

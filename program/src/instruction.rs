@@ -18,8 +18,8 @@ pub enum DataAccountInstruction {
 
     /// This instruction updates the data of the data account corresponding to the authority
     /// Requires data account to be initialized previously
-    #[account(0, signer, name = "authority", desc = "Authority account")]
-    #[account(1, writable, name = "data", desc = "Data account")]
+    #[account(0, signer, writable, name = "authority", desc = "Authority account")]
+    #[account(1, signer, writable, name = "data", desc = "Data account")]
     #[account(2, name = "system_program", desc = "System program")]
     UpdateDataAccount(UpdateDataAccountArgs),
 
@@ -31,8 +31,8 @@ pub enum DataAccountInstruction {
 
     /// This instruction updates the data stored in the data account corresponding to the authority
     /// Requires data account to be initialized previously
-    #[account(0, signer, name = "authority", desc = "Authority account")]
-    #[account(1, writable, name = "data", desc = "Data account")]
+    #[account(0, signer, writable, name = "authority", desc = "Authority account")]
+    #[account(1, signer, writable, name = "data", desc = "Data account")]
     #[account(2, name = "system_program", desc = "System program")]
     UpdateDataAccountData(UpdateDataAccountDataArgs),
 
