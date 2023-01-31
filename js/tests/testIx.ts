@@ -1,22 +1,21 @@
-const {
-  Connection,
+import {
+  Connection, 
+  PublicKey,
   sendAndConfirmTransaction,
   Keypair,
   Transaction,
   SystemProgram,
-  PublicKey,
   TransactionInstruction,
-} = require("@solana/web3.js");
-const BN = require("bn.js");
+  ConfirmOptions,
+} from "@solana/web3.js";
+import BN from "bn.js";
+import { parseJSON } from "../src/parseJSON";
 
 const main = async () => {
-  // var args = process.argv.slice(2);
-  // const programId = new PublicKey(args[0]);
   const programId = new PublicKey(
     "92ANfnQviCSVBUgSTMPgRy6AKmkGJoQpHbt8iJLjY6Q3"
   );
 
-  // const connection = new Connection("https://api.devnet.solana.com/");
   const connection = new Connection("http://localhost:8899");
 
   const feePayer = new Keypair();
@@ -164,12 +163,11 @@ const main = async () => {
       skipPreflight: true,
       preflightCommitment: "confirmed",
       confirmation: "confirmed",
-    }
+    } as ConfirmOptions
   );
-  // console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
   console.log(`https://explorer.solana.com/tx/${txid}?cluster=custom`);
 
-  await parseJSON(connection, dataAccount.publicKey);
+  let _ = await parseJSON(connection, dataAccount.publicKey);
 };
 
 main()
@@ -179,52 +177,3 @@ main()
   .catch((e) => {
     console.error(e);
   });
-
-const parseJSON = async (connection, dataKey) => {
-  const data_account = await connection.getAccountInfo(dataKey, "confirmed");
-  console.log("Raw Data:");
-  console.log(data_account?.data);
-
-  if (data_account) {
-    // pub struct DataAccountData {
-    //   pub data_type: u8,
-    //   pub data: Vec<u8>,
-    // }
-    // pub struct DataAccountState {
-    //   is_initialized: bool,
-    //   authority: Pubkey,
-    //   data_version: u8,
-    //   account_data: DataAccountData,
-    // }
-
-    // Data Account State
-    const data_account_state = data_account.data;
-    const account_state = {};
-    account_state.is_initialized = data_account_state.slice(0, 1).readUInt8()
-      ? true
-      : false;
-    account_state.authority = new PublicKey(
-      data_account_state.slice(1, 33)
-    ).toBase58();
-    account_state.data_version = new BN(
-      data_account_state.slice(33, 34),
-      "le"
-    ).toNumber();
-    account_state.account_data = {};
-
-    // Data Account Data
-    account_data = data_account_state.slice(34);
-    account_state.account_data.data_type = new BN(
-      account_data.slice(0, 1),
-      "le"
-    ).toNumber();
-    account_state.account_data.data = {
-      len: new BN(account_data.slice(1, 5), "le").toNumber(),
-      data: JSON.parse(account_data.slice(5)),
-    };
-
-    console.log("Parsed Data:");
-    console.log(account_state);
-    console.log(JSON.stringify(account_state.account_data.data.data, null, 2));
-  }
-};
