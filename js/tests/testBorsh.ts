@@ -16,7 +16,7 @@ import { PersonSchema, PersonStruct, PurchaseStruct } from "./testBorsh.types";
 
 const main = async () => {
   const programId = new PublicKey(
-    "92ANfnQviCSVBUgSTMPgRy6AKmkGJoQpHbt8iJLjY6Q3"
+    "CWvsRXMHYekFyr3hX9quPtp3Zia3mU8ZCQUcyPFsQVHL"
   );
 
   const connection = new Connection("http://localhost:8899");
@@ -59,12 +59,12 @@ const main = async () => {
       {
         pubkey: feePayer.publicKey,
         isSigner: true,
-        isWritable: false,
+        isWritable: true,
       },
       {
         pubkey: dataAccount.publicKey,
         isSigner: true,
-        isWritable: false,
+        isWritable: true,
       },
       {
         pubkey: SystemProgram.programId,

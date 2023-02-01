@@ -13,7 +13,7 @@ import { parseJSON } from "./parseJSON";
 
 const main = async () => {
   const programId = new PublicKey(
-    "92ANfnQviCSVBUgSTMPgRy6AKmkGJoQpHbt8iJLjY6Q3"
+    "CWvsRXMHYekFyr3hX9quPtp3Zia3mU8ZCQUcyPFsQVHL"
   );
 
   const connection = new Connection("http://localhost:8899");
@@ -35,12 +35,12 @@ const main = async () => {
       {
         pubkey: feePayer.publicKey,
         isSigner: true,
-        isWritable: false,
+        isWritable: true,
       },
       {
         pubkey: dataAccount.publicKey,
         isSigner: true,
-        isWritable: false,
+        isWritable: true,
       },
       {
         pubkey: SystemProgram.programId,
@@ -131,7 +131,25 @@ const main = async () => {
   });
 
   const idx4 = Buffer.from(new Uint8Array([4]));
-  let removeIx = new TransactionInstruction({
+  let finalizeIx = new TransactionInstruction({
+    keys: [
+      {
+        pubkey: feePayer.publicKey,
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: dataAccount.publicKey,
+        isSigner: true,
+        isWritable: false,
+      },
+    ],
+    programId: programId,
+    data: Buffer.concat([idx4]),
+  });
+
+  const idx5 = Buffer.from(new Uint8Array([5]));
+  let closeIx = new TransactionInstruction({
     keys: [
       {
         pubkey: feePayer.publicKey,
@@ -152,8 +170,9 @@ const main = async () => {
   tx.add(initializeIx)
     .add(updateIx)
     .add(updateTypeIx)
-    .add(updateDataIx);
-    // .add(removeIx);
+    .add(updateDataIx)
+    .add(finalizeIx)
+    .add(closeIx);
 
   let txid = await sendAndConfirmTransaction(
     connection,

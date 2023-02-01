@@ -11,9 +11,7 @@ export const parseData = async (connection: Connection, dataKey: PublicKey): Pro
     if (data_account) {
       // Data Account State
       const data_account_state = data_account.data;
-      account_state.is_initialized = data_account_state.subarray(0, 1).readUInt8()
-        ? true
-        : false;
+      account_state.status = data_account_state.subarray(0, 1).readUInt8()
       account_state.authority = new PublicKey(
         data_account_state.subarray(1, 33)
       ).toBase58();

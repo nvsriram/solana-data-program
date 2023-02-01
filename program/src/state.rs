@@ -4,6 +4,14 @@ use solana_program::pubkey::Pubkey;
 
 pub const DATA_VERSION: u8 = 0;
 
+#[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]
+pub enum DataStatusOption {
+    UNINITIALIZED,
+    INITIALIZED,
+    UPDATED,
+    FINALIZED,
+}
+
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct DataAccountData {
     pub data_type: u8,
@@ -12,7 +20,7 @@ pub struct DataAccountData {
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, ShankAccount)]
 pub struct DataAccountState {
-    is_initialized: bool,
+    status: DataStatusOption,
     authority: Pubkey,
     data_version: u8,
     account_data: DataAccountData,
@@ -21,13 +29,13 @@ pub struct DataAccountState {
 impl DataAccountState {
     /// Default constructor
     pub fn new(
-        is_initialized: bool,
+        status: DataStatusOption,
         authority: Pubkey,
         data_version: u8,
         account_data: DataAccountData,
     ) -> Self {
         DataAccountState {
-            is_initialized,
+            status,
             authority,
             data_version,
             account_data,
@@ -36,6 +44,7 @@ impl DataAccountState {
     /// Constructor given account_data
     pub fn new_with_account_data(copy: Self, account_data: DataAccountData) -> Self {
         DataAccountState {
+            status: DataStatusOption::UPDATED,
             account_data,
             ..copy
         }
@@ -43,6 +52,7 @@ impl DataAccountState {
     /// Constructor given data_type
     pub fn new_with_data_type(copy: Self, data_type: u8) -> Self {
         DataAccountState {
+            status: DataStatusOption::UPDATED,
             account_data: DataAccountData {
                 data_type,
                 ..copy.account_data
@@ -53,6 +63,7 @@ impl DataAccountState {
     /// Constructor given data
     pub fn new_with_data(copy: Self, data: Vec<u8>) -> Self {
         DataAccountState {
+            status: DataStatusOption::UPDATED,
             account_data: DataAccountData {
                 data,
                 ..copy.account_data
@@ -60,17 +71,13 @@ impl DataAccountState {
             ..copy
         }
     }
-    /// Signal initialized
-    pub fn set_initialized(&mut self) {
-        self.is_initialized = true;
+    /// Set status
+    pub fn set_status(&mut self, status: DataStatusOption) {
+        self.status = status;
     }
-    /// Signal uninitialized
-    pub fn reset_initialized(&mut self) {
-        self.is_initialized = false;
-    }
-    /// Get the initialized flag
-    pub fn initialized(&self) -> bool {
-        self.is_initialized
+    /// Get the status
+    pub fn status(&self) -> &DataStatusOption {
+        &self.status
     }
     /// Get the authority
     pub fn authority(&self) -> &Pubkey {
@@ -110,6 +117,9 @@ pub struct UpdateDataAccountDataTypeArgs {
 pub struct UpdateDataAccountDataArgs {
     pub data: Vec<u8>,
 }
+
+#[derive(Clone, BorshSerialize, BorshDeserialize)]
+pub struct FinalizeAccountArgs {}
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub struct CloseAccountArgs {}

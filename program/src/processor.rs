@@ -13,7 +13,7 @@ use solana_program::{
 use crate::{
     error::DataAccountError,
     instruction::DataAccountInstruction,
-    state::{DataAccountData, DataAccountState, DATA_VERSION},
+    state::{DataAccountData, DataAccountState, DataStatusOption, DATA_VERSION},
 };
 
 pub struct Processor {}
@@ -41,8 +41,12 @@ impl Processor {
                     data_type: 0,
                     data: vec![0; args.space as usize],
                 };
-                let account_state =
-                    DataAccountState::new(true, *authority.key, DATA_VERSION, account_data);
+                let account_state = DataAccountState::new(
+                    DataStatusOption::INITIALIZED,
+                    *authority.key,
+                    DATA_VERSION,
+                    account_data,
+                );
 
                 // create a data_account of given space
                 let space = (account_state.try_to_vec()?).len();
@@ -114,7 +118,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if !account_state.initialized() {
+                if *account_state.status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
@@ -214,7 +218,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if !account_state.initialized() {
+                if *account_state.status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
@@ -273,7 +277,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if !account_state.initialized() {
+                if *account_state.status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
@@ -342,8 +346,53 @@ impl Processor {
 
                 Ok(())
             }
+            DataAccountInstruction::FinalizeAccount(_args) => {
+                msg!("Instruction: FinalizeAccount");
+
+                let accounts_iter = &mut accounts.iter();
+                let authority = next_account_info(accounts_iter)?;
+                let data_account = next_account_info(accounts_iter)?;
+
+                // ensure authority is signer
+                if !authority.is_signer {
+                    return Err(DataAccountError::NotSigner.into());
+                }
+
+                // ensure data_account is writeable
+                if !data_account.is_writable {
+                    return Err(DataAccountError::NotWriteable.into());
+                }
+
+                // ensure length is not 0
+                if data_account.data_is_empty() {
+                    return Err(DataAccountError::NoAccountLength.into());
+                }
+
+                let mut account_state =
+                    DataAccountState::try_from_slice(&data_account.try_borrow_mut_data()?)?;
+
+                // ensure data_account is initialized
+                if *account_state.status() == DataStatusOption::UNINITIALIZED {
+                    return Err(DataAccountError::NotInitialized.into());
+                }
+
+                // ensure data_account is being closed by valid authority
+                if account_state.authority() != authority.key {
+                    return Err(DataAccountError::InvalidAuthority.into());
+                }
+
+                account_state.set_status(DataStatusOption::FINALIZED);
+                account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
+
+                msg!(
+                    "data: {:?}",
+                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
+                );
+
+                Ok(())
+            }
             DataAccountInstruction::CloseAccount(_args) => {
-                msg!("Instruction: RemoveAccount");
+                msg!("Instruction: CloseAccount");
 
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
@@ -373,7 +422,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if !account_state.initialized() {
+                if *account_state.status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 

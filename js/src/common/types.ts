@@ -1,3 +1,10 @@
+enum DataStatusOption {
+    UNINITIALIZED,
+    INITIALIZED,
+    UPDATED,
+    FINALIZED,
+}
+
 export interface IDataAccountData {
     data_type: number;
     data?: {
@@ -7,7 +14,7 @@ export interface IDataAccountData {
 };
     
 export interface IDataAccountState {
-    is_initialized: boolean;
+    status: DataStatusOption;
     authority: string;
     data_version: number;
     account_data: IDataAccountData;
