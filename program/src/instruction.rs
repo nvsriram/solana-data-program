@@ -40,7 +40,6 @@ pub enum DataAccountInstruction {
     /// Requires data account to be initialized previously
     #[account(0, signer, name = "authority", desc = "Authority account")]
     #[account(1, writable, name = "data", desc = "Data account")]
-    #[account(2, name = "schema", desc = "Data account with schema to verify data")]
     FinalizeAccount(FinalizeAccountArgs),
 
     /// This instruction unlinks the data account corresponding to the authority

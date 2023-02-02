@@ -1,4 +1,4 @@
-use borsh::{schema, BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use serde_json::Value;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -20,37 +20,14 @@ use crate::{
     },
 };
 
-pub fn verify_data(
-    account_state: &DataAccountState,
-    schema_account: Option<&AccountInfo>,
-) -> SerializationStatusOption {
+pub fn verify_data(account_state: &DataAccountState) -> SerializationStatusOption {
     let account_data = account_state.data();
     if account_data.data.is_empty() || account_data.data_type == DataTypeOption::CUSTOM {
         return SerializationStatusOption::UNVERIFIED;
     }
     let data = &account_data.data;
     match account_data.data_type {
-        DataTypeOption::BORSH => {
-            if schema_account.is_none() {
-                return SerializationStatusOption::FAILED;
-            }
-            let schema_account_state = schema_account.unwrap().data.borrow();
-            let schema_account_state = DataAccountState::try_from_slice(&schema_account_state);
-            if schema_account_state.is_err() {
-                return SerializationStatusOption::FAILED;
-            }
-            let schema_account_state = schema_account_state.unwrap();
-            if *schema_account_state.serialization_status() != SerializationStatusOption::VERIFIED
-                || *schema_account_state.data_status() != DataStatusOption::FINALIZED
-            {
-                return SerializationStatusOption::FAILED;
-            }
-            let schema_data: Value =
-                serde_json::from_slice(&schema_account_state.data().data).unwrap();
-            let deserialized = schema_data.as_object().unwrap();
-
-            SerializationStatusOption::VERIFIED
-        }
+        DataTypeOption::BORSH => SerializationStatusOption::UNVERIFIED,
         DataTypeOption::JSON => {
             let deserialized: Result<Value, serde_json::Error> = serde_json::from_slice(&data);
             if deserialized.is_err() {
@@ -400,11 +377,6 @@ impl Processor {
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
-                let schema_account = if accounts.len() > 2 {
-                    Some(next_account_info(accounts_iter)?)
-                } else {
-                    None
-                };
 
                 // ensure authority is signer
                 if !authority.is_signer {
@@ -436,8 +408,7 @@ impl Processor {
 
                 account_state.set_data_status(DataStatusOption::FINALIZED);
                 if args.verify_flag {
-                    account_state
-                        .set_serialization_status(verify_data(&account_state, schema_account));
+                    account_state.set_serialization_status(verify_data(&account_state));
                 }
 
                 account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
