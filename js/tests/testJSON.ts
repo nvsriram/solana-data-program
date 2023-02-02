@@ -9,12 +9,12 @@ import {
   ConfirmOptions,
 } from "@solana/web3.js";
 import BN from "bn.js";
+import { PROGRAM_ID } from "../src/common/constants";
+import { DataTypeOption } from "../src/common/types";
 import { parseJSON } from "../src/parseJSON";
 
 const main = async () => {
-  const programId = new PublicKey(
-    "CWvsRXMHYekFyr3hX9quPtp3Zia3mU8ZCQUcyPFsQVHL"
-  );
+  const programId = new PublicKey(PROGRAM_ID);
 
   const connection = new Connection("http://localhost:8899");
 
@@ -53,7 +53,7 @@ const main = async () => {
   });
 
   const idx1 = Buffer.from(new Uint8Array([1]));
-  const data_type = Buffer.from(new Uint8Array(new BN(5).toArray("le", 1)));
+  const data_type = Buffer.from(new Uint8Array(new BN(DataTypeOption.JSON).toArray("le", 1)));
   const data_len = Buffer.from(
     new Uint8Array(new BN(message.length).toArray("le", 4))
   );
@@ -80,62 +80,29 @@ const main = async () => {
     data: Buffer.concat([idx1, data_type, data_len, data]),
   });
 
-  const idx2 = Buffer.from(new Uint8Array([2]));
-  const new_data_type = Buffer.from(
-    new Uint8Array(new BN(250).toArray("le", 1))
-  );
-  let updateTypeIx = new TransactionInstruction({
+  const idx4 = Buffer.from(new Uint8Array([4]));
+  const verify_flag = Buffer.from(new Uint8Array([1]));
+  let finalizeIx = new TransactionInstruction({
     keys: [
       {
         pubkey: feePayer.publicKey,
-        isSigner: true,
-        isWritable: false,
-      },
-      {
-        pubkey: dataAccount.publicKey,
         isSigner: false,
-        isWritable: true,
-      },
-    ],
-    programId: programId,
-    data: Buffer.concat([idx2, new_data_type]),
-  });
-
-  const idx3 = Buffer.from(new Uint8Array([3]));
-  const new_object = { message: "Hey there, Jane!", author: "John Doe" };
-  const new_message = JSON.stringify(new_object);
-  const len = Buffer.from(
-    new Uint8Array(new BN(new_message.length).toArray("le", 4))
-  );
-  const new_data = Buffer.from(new_message, "ascii");
-  let updateDataIx = new TransactionInstruction({
-    keys: [
-      {
-        pubkey: feePayer.publicKey,
-        isSigner: true,
         isWritable: true,
       },
       {
         pubkey: dataAccount.publicKey,
         isSigner: true,
-        isWritable: true,
-      },
-      {
-        pubkey: SystemProgram.programId,
-        isSigner: false,
         isWritable: false,
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx3, len, new_data]),
+    data: Buffer.concat([idx4, verify_flag]),
   });
-
 
   let tx = new Transaction();
   tx.add(initializeIx)
     .add(updateIx)
-    .add(updateTypeIx)
-    .add(updateDataIx);
+    .add(finalizeIx)
 
   let txid = await sendAndConfirmTransaction(
     connection,

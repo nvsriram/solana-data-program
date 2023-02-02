@@ -11,18 +11,19 @@ export const parseData = async (connection: Connection, dataKey: PublicKey): Pro
     if (data_account) {
       // Data Account State
       const data_account_state = data_account.data;
-      account_state.status = data_account_state.subarray(0, 1).readUInt8()
+      account_state.data_status = data_account_state.subarray(0, 1).readUInt8()
+      account_state.serialization_status = data_account_state.subarray(1, 2).readUInt8()
       account_state.authority = new PublicKey(
-        data_account_state.subarray(1, 33)
+        data_account_state.subarray(2, 34)
       ).toBase58();
       account_state.data_version = new BN(
-        data_account_state.subarray(33, 34),
+        data_account_state.subarray(34, 35),
         "le"
       ).toNumber();
       account_state.account_data = {} as IDataAccountData;
   
       // Data Account Data
-      const account_data = data_account_state.subarray(34);
+      const account_data = data_account_state.subarray(35);
       account_state.account_data.data_type = new BN(
         account_data.subarray(0, 1),
         "le"

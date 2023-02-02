@@ -5,6 +5,18 @@ enum DataStatusOption {
     FINALIZED,
 }
 
+enum SerializationStatusOption {
+    UNVERIFIED,
+    VERIFIED,
+    FAILED,
+}
+
+export enum DataTypeOption {
+    CUSTOM = 0,
+    JSON = 1,
+    BORSH = 2,
+}
+
 export interface IDataAccountData {
     data_type: number;
     data?: {
@@ -14,7 +26,8 @@ export interface IDataAccountData {
 };
     
 export interface IDataAccountState {
-    status: DataStatusOption;
+    data_status: DataStatusOption;
+    serialization_status: SerializationStatusOption;
     authority: string;
     data_version: number;
     account_data: IDataAccountData;

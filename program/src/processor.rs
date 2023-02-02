@@ -1,4 +1,5 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{schema, BorshDeserialize, BorshSerialize};
+use serde_json::Value;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -13,8 +14,54 @@ use solana_program::{
 use crate::{
     error::DataAccountError,
     instruction::DataAccountInstruction,
-    state::{DataAccountData, DataAccountState, DataStatusOption, DATA_VERSION},
+    state::{
+        DataAccountData, DataAccountState, DataStatusOption, DataTypeOption,
+        SerializationStatusOption, DATA_VERSION,
+    },
 };
+
+pub fn verify_data(
+    account_state: &DataAccountState,
+    schema_account: Option<&AccountInfo>,
+) -> SerializationStatusOption {
+    let account_data = account_state.data();
+    if account_data.data.is_empty() || account_data.data_type == DataTypeOption::CUSTOM {
+        return SerializationStatusOption::UNVERIFIED;
+    }
+    let data = &account_data.data;
+    match account_data.data_type {
+        DataTypeOption::BORSH => {
+            if schema_account.is_none() {
+                return SerializationStatusOption::FAILED;
+            }
+            let schema_account_state = schema_account.unwrap().data.borrow();
+            let schema_account_state = DataAccountState::try_from_slice(&schema_account_state);
+            if schema_account_state.is_err() {
+                return SerializationStatusOption::FAILED;
+            }
+            let schema_account_state = schema_account_state.unwrap();
+            if *schema_account_state.serialization_status() != SerializationStatusOption::VERIFIED
+                || *schema_account_state.data_status() != DataStatusOption::FINALIZED
+            {
+                return SerializationStatusOption::FAILED;
+            }
+            let schema_data: Value =
+                serde_json::from_slice(&schema_account_state.data().data).unwrap();
+            let deserialized = schema_data.as_object().unwrap();
+
+            SerializationStatusOption::VERIFIED
+        }
+        DataTypeOption::JSON => {
+            let deserialized: Result<Value, serde_json::Error> = serde_json::from_slice(&data);
+            if deserialized.is_err() {
+                SerializationStatusOption::FAILED
+            } else {
+                SerializationStatusOption::VERIFIED
+            }
+        }
+        _ => SerializationStatusOption::FAILED,
+    }
+}
 
 pub struct Processor {}
 
@@ -38,11 +85,12 @@ impl Processor {
 
                 // create initial state for data_account data
                 let account_data = DataAccountData {
-                    data_type: 0,
+                    data_type: DataTypeOption::CUSTOM,
                     data: vec![0; args.space as usize],
                 };
                 let account_state = DataAccountState::new(
                     DataStatusOption::INITIALIZED,
+                    SerializationStatusOption::UNVERIFIED,
                     *authority.key,
                     DATA_VERSION,
                     account_data,
@@ -118,7 +166,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if *account_state.status() == DataStatusOption::UNINITIALIZED {
+                if *account_state.data_status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
@@ -218,7 +266,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if *account_state.status() == DataStatusOption::UNINITIALIZED {
+                if *account_state.data_status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
@@ -277,7 +325,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if *account_state.status() == DataStatusOption::UNINITIALIZED {
+                if *account_state.data_status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
@@ -346,12 +394,17 @@ impl Processor {
 
                 Ok(())
             }
-            DataAccountInstruction::FinalizeAccount(_args) => {
+            DataAccountInstruction::FinalizeAccount(args) => {
                 msg!("Instruction: FinalizeAccount");
 
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
+                let schema_account = if accounts.len() > 2 {
+                    Some(next_account_info(accounts_iter)?)
+                } else {
+                    None
+                };
 
                 // ensure authority is signer
                 if !authority.is_signer {
@@ -372,7 +425,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_mut_data()?)?;
 
                 // ensure data_account is initialized
-                if *account_state.status() == DataStatusOption::UNINITIALIZED {
+                if *account_state.data_status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
@@ -381,7 +434,12 @@ impl Processor {
                     return Err(DataAccountError::InvalidAuthority.into());
                 }
 
-                account_state.set_status(DataStatusOption::FINALIZED);
+                account_state.set_data_status(DataStatusOption::FINALIZED);
+                if args.verify_flag {
+                    account_state
+                        .set_serialization_status(verify_data(&account_state, schema_account));
+                }
+
                 account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
 
                 msg!(
@@ -422,7 +480,7 @@ impl Processor {
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if *account_state.status() == DataStatusOption::UNINITIALIZED {
+                if *account_state.data_status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 

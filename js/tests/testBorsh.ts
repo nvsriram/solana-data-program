@@ -10,14 +10,14 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 import { serialize } from 'borsh';
+import { PROGRAM_ID } from "../src/common/constants";
+import { DataTypeOption } from "../src/common/types";
 import { parseBorsh } from "../src/parseBorsh";
 import { PersonSchema, PersonStruct, PurchaseStruct } from "./testBorsh.types";
 
 
 const main = async () => {
-  const programId = new PublicKey(
-    "CWvsRXMHYekFyr3hX9quPtp3Zia3mU8ZCQUcyPFsQVHL"
-  );
+  const programId = new PublicKey(PROGRAM_ID);
 
   const connection = new Connection("http://localhost:8899");
 
@@ -77,7 +77,7 @@ const main = async () => {
   });
 
   const idx1 = Buffer.from(new Uint8Array([1]));
-  const data_type = Buffer.from(new Uint8Array(new BN(5).toArray("le", 1)));
+  const data_type = Buffer.from(new Uint8Array(new BN(DataTypeOption.BORSH).toArray("le", 1)));
   const data_len = Buffer.from(
     new Uint8Array(new BN(serialized.length).toArray("le", 4))
   );
@@ -104,9 +104,29 @@ const main = async () => {
     data: Buffer.concat([idx1, data_type, data_len, data]),
   });
 
+  const idx4 = Buffer.from(new Uint8Array([4]));
+  const verify_flag = Buffer.from(new Uint8Array([1]));
+  let finalizeIx = new TransactionInstruction({
+    keys: [
+      {
+        pubkey: feePayer.publicKey,
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: dataAccount.publicKey,
+        isSigner: true,
+        isWritable: false,
+      },
+    ],
+    programId: programId,
+    data: Buffer.concat([idx4, verify_flag]),
+  });
+
   let tx = new Transaction();
   tx.add(initializeIx)
     .add(updateIx)
+    .add(finalizeIx);
 
   let txid = await sendAndConfirmTransaction(
     connection,

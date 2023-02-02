@@ -9,12 +9,12 @@ import {
   ConfirmOptions,
 } from "@solana/web3.js";
 import BN from "bn.js";
+import { PROGRAM_ID } from "../src/common/constants";
+import { DataTypeOption } from "../src/common/types";
 import { parseJSON } from "../src/parseJSON";
 
 const main = async () => {
-  const programId = new PublicKey(
-    "CWvsRXMHYekFyr3hX9quPtp3Zia3mU8ZCQUcyPFsQVHL"
-  );
+  const programId = new PublicKey(PROGRAM_ID);
 
   const connection = new Connection("http://localhost:8899");
 
@@ -53,7 +53,7 @@ const main = async () => {
   });
 
   const idx1 = Buffer.from(new Uint8Array([1]));
-  const data_type = Buffer.from(new Uint8Array(new BN(5).toArray("le", 1)));
+  const data_type = Buffer.from(new Uint8Array(new BN(DataTypeOption.CUSTOM).toArray("le", 1)));
   const data_len = Buffer.from(
     new Uint8Array(new BN(message.length).toArray("le", 4))
   );
@@ -82,7 +82,7 @@ const main = async () => {
 
   const idx2 = Buffer.from(new Uint8Array([2]));
   const new_data_type = Buffer.from(
-    new Uint8Array(new BN(250).toArray("le", 1))
+    new Uint8Array(new BN(DataTypeOption.JSON).toArray("le", 1))
   );
   let updateTypeIx = new TransactionInstruction({
     keys: [
@@ -131,6 +131,7 @@ const main = async () => {
   });
 
   const idx4 = Buffer.from(new Uint8Array([4]));
+  const verify_flag = Buffer.from(new Uint8Array([1]));
   let finalizeIx = new TransactionInstruction({
     keys: [
       {
@@ -145,7 +146,25 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx4]),
+    data: Buffer.concat([idx4, verify_flag]),
+  });
+  
+  const false_flag = Buffer.from(new Uint8Array([0]));
+  let finalizeIxUnchecked  = new TransactionInstruction({
+    keys: [
+      {
+        pubkey: feePayer.publicKey,
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: dataAccount.publicKey,
+        isSigner: true,
+        isWritable: false,
+      },
+    ],
+    programId: programId,
+    data: Buffer.concat([idx4, false_flag]),
   });
 
   const idx5 = Buffer.from(new Uint8Array([5]));
@@ -163,7 +182,7 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx4]),
+    data: Buffer.concat([idx5]),
   });
 
   let tx = new Transaction();
@@ -172,6 +191,7 @@ const main = async () => {
     .add(updateTypeIx)
     .add(updateDataIx)
     .add(finalizeIx)
+    .add(finalizeIxUnchecked)
     .add(closeIx);
 
   let txid = await sendAndConfirmTransaction(
