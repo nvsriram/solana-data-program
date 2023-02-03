@@ -116,7 +116,7 @@ const main = async () => {
   );
   console.log(`https://explorer.solana.com/tx/${txid}?cluster=custom`);
 
-  let _ = await parseJSON(connection, dataAccount.publicKey);
+  let _ = await parseJSON(connection, dataAccount.publicKey, true);
 };
 
 main()

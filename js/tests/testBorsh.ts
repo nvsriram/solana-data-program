@@ -140,7 +140,7 @@ const main = async () => {
   );
   console.log(`https://explorer.solana.com/tx/${txid}?cluster=custom`);
 
-  let _ = await parseBorsh(connection, dataAccount.publicKey, PersonSchema, PersonStruct);
+  let _ = await parseBorsh(connection, dataAccount.publicKey, PersonSchema, PersonStruct, true);
 };
 
 main()

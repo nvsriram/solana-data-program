@@ -8,5 +8,5 @@
     "skipLibCheck": true /* Skip type checking all .d.ts files. */,
     "strictPropertyInitialization": false
   },
-  "include": ["./src", "./tests"]
+  "include": ["./src", "./*"]
 }

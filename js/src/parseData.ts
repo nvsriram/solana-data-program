@@ -2,12 +2,14 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { IDataAccountData, IDataAccountState } from "./common/types";
   
-export const parseData = async (connection: Connection, dataKey: PublicKey): Promise<IDataAccountState> => {
+export const parseData = async (connection: Connection, dataKey: PublicKey, debug?: boolean): Promise<IDataAccountState> => {
     const data_account = await connection.getAccountInfo(dataKey, "confirmed");
     const account_state: IDataAccountState = {} as IDataAccountState;
-    console.log("Raw Data:");
-    console.log(data_account?.data);
-  
+
+    if (debug) {
+      console.log("Raw Data:");
+      console.log(data_account?.data);
+    }
     if (data_account) {
       // Data Account State
       const data_account_state = data_account.data;

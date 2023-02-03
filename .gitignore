@@ -6,3 +6,4 @@
 **/.DS_Store
 **/*checkpoint.ipynb
 **/test-ledger
+.env
