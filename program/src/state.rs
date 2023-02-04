@@ -147,9 +147,9 @@ pub struct UpdateDataAccountDataArgs {
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct FinalizeAccountArgs {
+pub struct FinalizeDataAccountArgs {
     pub verify_flag: bool,
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct CloseAccountArgs {}
+pub struct CloseDataAccountArgs {}

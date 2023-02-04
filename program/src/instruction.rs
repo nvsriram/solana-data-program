@@ -2,8 +2,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use shank::ShankInstruction;
 
 use crate::state::{
-    CloseAccountArgs, FinalizeAccountArgs, InitializeDataAccountArgs, UpdateDataAccountArgs,
-    UpdateDataAccountDataArgs, UpdateDataAccountDataTypeArgs,
+    CloseDataAccountArgs, FinalizeDataAccountArgs, InitializeDataAccountArgs,
+    UpdateDataAccountArgs, UpdateDataAccountDataArgs, UpdateDataAccountDataTypeArgs,
 };
 
 /// Instructions supported by the Data program.
@@ -40,11 +40,11 @@ pub enum DataAccountInstruction {
     /// Requires data account to be initialized previously
     #[account(0, signer, name = "authority", desc = "Authority account")]
     #[account(1, writable, name = "data", desc = "Data account")]
-    FinalizeAccount(FinalizeAccountArgs),
+    FinalizeDataAccount(FinalizeDataAccountArgs),
 
     /// This instruction unlinks the data account corresponding to the authority
     /// Requires data account to be initialized previously
     #[account(0, writable, name = "authority", desc = "Authority account")]
     #[account(1, signer, writable, name = "data", desc = "Data account")]
-    CloseAccount(CloseAccountArgs),
+    CloseDataAccount(CloseDataAccountArgs),
 }

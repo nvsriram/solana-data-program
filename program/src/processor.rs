@@ -371,7 +371,7 @@ impl Processor {
 
                 Ok(())
             }
-            DataAccountInstruction::FinalizeAccount(args) => {
+            DataAccountInstruction::FinalizeDataAccount(args) => {
                 msg!("Instruction: FinalizeAccount");
 
                 let accounts_iter = &mut accounts.iter();
@@ -420,7 +420,7 @@ impl Processor {
 
                 Ok(())
             }
-            DataAccountInstruction::CloseAccount(_args) => {
+            DataAccountInstruction::CloseDataAccount(_args) => {
                 msg!("Instruction: CloseAccount");
 
                 let accounts_iter = &mut accounts.iter();
