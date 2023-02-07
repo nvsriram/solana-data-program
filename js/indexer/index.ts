@@ -6,7 +6,7 @@ import { parseData } from "../src/parseData";
 import { BN } from "bn.js";
 
 let changes = 0;
-const MAX_CHANGES = 2;
+const MAX_CHANGES = 10;
 const DELAY = 10*1000;
 
 dotenv.config();
@@ -36,12 +36,12 @@ const connectDb = async () => {
 }
 
 const populateDB = async () => {
-    let data_account_set = new Set<PublicKey>();
+    let data_account_set = new Set<string>();
     connection.getSignaturesForAddress(programId)
-    .then((transactions) => {
+    .then(async (transactions) => {
         for (let idx = 0; idx < transactions.length; ++idx) {
             const transaction = transactions[idx];
-            connection.getParsedTransaction(transaction.signature)
+            await connection.getParsedTransaction(transaction.signature)
             .then((txInfo) => {
                 const tx = txInfo?.transaction; 
                 const instructions = tx?.message.instructions;
@@ -51,66 +51,66 @@ const populateDB = async () => {
                     if (!ix.data) return;              
                     let decoded = bs58.decode(ix.data);
                     // if UpdateDataAccount instruction with commit_flag
-                    if (decoded[0] === 1 && decoded[decoded.length - 2] === 1) {
-                        if (ix.accounts.length < 2) {
-                            console.error("Missing accounts");
-                        }
-                        const dataKey = ix.accounts[1];
-                        const dataPubKey = dataKey.toBase58();
-                        // ensure its not reupdated by previous transaction ix
-                        if (data_account_set.has(dataKey)) continue;
-                        data_account_set.add(dataKey);
-                        const ix_data = Buffer.from(decoded.slice(1));
-                        const data_type = new BN(
-                            ix_data.subarray(0, 1),
-                            "le"
-                        ).toNumber();
-                        const data = ix_data.subarray(5);
-                        const dataJSON = data?.toJSON();
-
-                        parseData(connection, dataKey)
-                        .then((account_state) => {
-                            if (Object.keys(account_state).length === 0) return;
-                            const { authority, serialization_status } = account_state;
-                            connectDb().then((client) => {
-                                // check if row already present
-                                client?.query(SELECTQUERY, [dataPubKey])
-                                    .then((res) => {
-                                        // if present
-                                        if (res.rowCount === 1) {
-                                            client.query(
-                                                UPDATEQUERY, 
-                                                [data_type, dataJSON, transaction.signature, serialization_status, dataPubKey]
-                                            )
-                                            .then((res) => {
-                                                if (res.rowCount === 1) {
-                                                    ++changes;
-                                                    console.log("updated row");
-                                                }
-                                                client.end();
-                                            })
-                                            .catch((err) => { console.log(err.stack); });
-                                        } 
-                                        // not present
-                                        else {
-                                            client?.query(
-                                                INSERTQUERY,
-                                                [dataPubKey, authority, data_type, dataJSON, transaction.signature, serialization_status]
-                                            )
-                                            .then((res) => {
-                                                if (res.rowCount === 1) {
-                                                    ++changes;
-                                                    console.log("inserted row");
-                                                }
-                                                client.end();
-                                            })
-                                            .catch((err) => { console.error(err.stack); });
-                                        }
-                                    })
-                                    .catch((err) => { console.error(err.stack); });
-                            });
-                        });
+                    if (decoded[0] !== 1 && decoded[decoded.length - 2] !== 1) continue;
+                    if (ix.accounts.length < 2) {
+                        console.error("Missing accounts");
+                        continue;
                     }
+                    const dataKey = ix.accounts[1];
+                    const dataPubKey = dataKey.toBase58();
+                    // ensure its not reupdated by previous transaction ix
+                    if (data_account_set.has(dataPubKey)) continue;
+                    data_account_set.add(dataPubKey);
+                    const ix_data = Buffer.from(decoded.slice(1));
+                    const data_type = new BN(
+                        ix_data.subarray(0, 1),
+                        "le"
+                    ).toNumber();
+                    const data = ix_data.subarray(5);
+                    const dataJSON = data?.toJSON();
+
+                    parseData(connection, dataKey)
+                    .then((account_state) => {
+                        if (Object.keys(account_state).length === 0) return;
+                        const { authority, serialization_status } = account_state;
+                        connectDb().then((client) => {
+                            // check if row already present
+                            client?.query(SELECTQUERY, [dataPubKey])
+                                .then((res) => {
+                                    // if present
+                                    if (res.rowCount === 1) {
+                                        client.query(
+                                            UPDATEQUERY, 
+                                            [data_type, dataJSON, transaction.signature, serialization_status, dataPubKey]
+                                        )
+                                        .then((res) => {
+                                            if (res.rowCount === 1) {
+                                                ++changes;
+                                                console.log("updated row", transaction.signature);
+                                            }
+                                            client.end();
+                                        })
+                                        .catch((err) => { console.log(err.stack); });
+                                    } 
+                                    // not present
+                                    else {
+                                        client?.query(
+                                            INSERTQUERY,
+                                            [dataPubKey, authority, data_type, dataJSON, transaction.signature, serialization_status]
+                                        )
+                                        .then((res) => {
+                                            if (res.rowCount === 1) {
+                                                ++changes;
+                                                console.log("inserted row", transaction.signature);
+                                            }
+                                            client.end();
+                                        })
+                                        .catch((err) => { console.error(err.stack); });
+                                    }
+                                })
+                                .catch((err) => { console.error(err.stack); });
+                        });
+                    });
                 }
             });
         }

@@ -10,7 +10,7 @@ export const parseData = async (connection: Connection, dataKey: PublicKey, debu
       console.log("Raw Data:");
       console.log(data_account?.data);
     }
-    if (data_account) {
+    if (data_account && data_account.data.length > 0) {
       // Data Account State
       const data_account_state = data_account.data;
       account_state.data_status = data_account_state.subarray(0, 1).readUInt8()
@@ -26,14 +26,16 @@ export const parseData = async (connection: Connection, dataKey: PublicKey, debu
   
       // Data Account Data
       const account_data = data_account_state.subarray(35);
-      account_state.account_data.data_type = new BN(
-        account_data.subarray(0, 1),
-        "le"
-      ).toNumber();
-      account_state.account_data.data = {
-        len: new BN(account_data.subarray(1, 5), "le").toNumber(),
-        data: account_data.subarray(5),
-      };
+      if (account_data) {
+        account_state.account_data.data_type = new BN(
+          account_data.subarray(0, 1),
+          "le"
+        ).toNumber();
+        account_state.account_data.data = {
+          len: new BN(account_data.subarray(1, 5), "le").toNumber(),
+          data: account_data.subarray(5),
+        };
+      }
     }
     return account_state;
   };

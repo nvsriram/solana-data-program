@@ -11,6 +11,7 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 import * as dotenv from 'dotenv';
+import { loadKeypairFromFile } from '../src/common/utils'
 import { DataTypeOption } from "../src/common/types";
 import { parseJSON } from "../src/parseJSON";
 
@@ -21,8 +22,8 @@ const main = async () => {
 
   const connection = new Connection("http://localhost:8899");
 
-  const feePayer = new Keypair();
-  const dataAccount = new Keypair();
+  const feePayer = loadKeypairFromFile("/Users/nvsriram/code/solana-acount/program/target/deploy/feepayer-keypair.json");
+  const dataAccount = loadKeypairFromFile("/Users/nvsriram/code/solana-acount/program/target/deploy/dataaccount-keypair.json");
 
   console.log("Requesting Airdrop of 1 SOL...");
   await connection.requestAirdrop(feePayer.publicKey, 2e9);
@@ -85,7 +86,7 @@ const main = async () => {
     data: Buffer.concat([idx1, data_type, data_len, data, commit_flag, verify_flag]),
   });
 
-  const new_object = { message: "Hey there, Jane!", author: "John Doe" };
+  const new_object = { message: "Jane, hello. Have a great day!", author: "John Doe" };
   const new_message = JSON.stringify(new_object);
   const len = Buffer.from(
     new Uint8Array(new BN(new_message.length).toArray("le", 4))
@@ -111,7 +112,7 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx1, data_type, len, new_data, unverify_flag, verify_flag]),
+    data: Buffer.concat([idx1, data_type, len, new_data, verify_flag, unverify_flag]),
   });
 
   const idx2 = Buffer.from(new Uint8Array([2]));
@@ -132,16 +133,10 @@ const main = async () => {
     data: Buffer.concat([idx2]),
   });
 
-  let transferIx = SystemProgram.transfer({
-    fromPubkey: feePayer.publicKey,
-    lamports: LAMPORTS_PER_SOL,
-    toPubkey: dataAccount.publicKey
-  });
-
   let tx = new Transaction();
-  tx.add(initializeIx)
-  .add(updateIx)
-  .add(updateIx2)
+  // tx.add(initializeIx)
+  tx.add(updateIx)
+  tx.add(updateIx2)
 
   let txid = await sendAndConfirmTransaction(
     connection,
