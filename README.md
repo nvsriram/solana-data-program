@@ -78,7 +78,7 @@ The _buffer account_ would essentialy store a snapshot of the _data account_'s d
 3.  If a `finalize` instruction is encountered before the latest update to `data_type` or `data`, use the value at the time of the encountered `finalize` instruction:
     - If the encountered `finalize` instruction corresponds to the row in the database, use it
     - Otherwise, continue tracing back past this instruction i.e. repeat [step 2](#step-2) using the encountered `finalize` instruction
-4.  The indexer could also close the _buffer account_ once it is don reading from it
+4.  The indexer could also close the _buffer account_ once it is done reading from it
 5.  The _buffer account_ would essentialy store a snapshot of the _data account_'s data at the time of the `finalize` instruction
 
 ##### Issues with Implementation

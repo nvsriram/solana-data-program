@@ -7,14 +7,17 @@ import {
   SystemProgram,
   TransactionInstruction,
   ConfirmOptions,
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import BN from "bn.js";
-import { PROGRAM_ID } from "../src/common/constants";
+import * as dotenv from 'dotenv';
 import { DataTypeOption } from "../src/common/types";
 import { parseJSON } from "../src/parseJSON";
 
+dotenv.config();
+
 const main = async () => {
-  const programId = new PublicKey(PROGRAM_ID);
+  const programId = new PublicKey(process.env.PROGRAM_ID as string);
 
   const connection = new Connection("http://localhost:8899");
 
@@ -57,6 +60,8 @@ const main = async () => {
   const data_len = Buffer.from(
     new Uint8Array(new BN(message.length).toArray("le", 4))
   );
+  const commit_flag = Buffer.from(new Uint8Array([1]));
+  const verify_flag = Buffer.from(new Uint8Array([1]));
   const data = Buffer.from(message, "ascii");
   let updateIx = new TransactionInstruction({
     keys: [
@@ -77,38 +82,17 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx1, data_type, data_len, data]),
+    data: Buffer.concat([idx1, data_type, data_len, data, commit_flag, verify_flag]),
   });
 
-  const idx2 = Buffer.from(new Uint8Array([2]));
-  const new_data_type = Buffer.from(
-    new Uint8Array(new BN(DataTypeOption.JSON).toArray("le", 1))
-  );
-  let updateTypeIx = new TransactionInstruction({
-    keys: [
-      {
-        pubkey: feePayer.publicKey,
-        isSigner: true,
-        isWritable: false,
-      },
-      {
-        pubkey: dataAccount.publicKey,
-        isSigner: false,
-        isWritable: true,
-      },
-    ],
-    programId: programId,
-    data: Buffer.concat([idx2, new_data_type]),
-  });
-
-  const idx3 = Buffer.from(new Uint8Array([3]));
   const new_object = { message: "Hey there, Jane!", author: "John Doe" };
   const new_message = JSON.stringify(new_object);
   const len = Buffer.from(
     new Uint8Array(new BN(new_message.length).toArray("le", 4))
   );
   const new_data = Buffer.from(new_message, "ascii");
-  let updateDataIx = new TransactionInstruction({
+  const unverify_flag = Buffer.from(new Uint8Array([0]));
+  let updateIx2 = new TransactionInstruction({
     keys: [
       {
         pubkey: feePayer.publicKey,
@@ -127,47 +111,10 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx3, len, new_data]),
+    data: Buffer.concat([idx1, data_type, len, new_data, unverify_flag, verify_flag]),
   });
 
-  const idx4 = Buffer.from(new Uint8Array([4]));
-  const verify_flag = Buffer.from(new Uint8Array([1]));
-  let finalizeIx = new TransactionInstruction({
-    keys: [
-      {
-        pubkey: feePayer.publicKey,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: dataAccount.publicKey,
-        isSigner: true,
-        isWritable: false,
-      },
-    ],
-    programId: programId,
-    data: Buffer.concat([idx4, verify_flag]),
-  });
-  
-  const false_flag = Buffer.from(new Uint8Array([0]));
-  let finalizeIxUnchecked  = new TransactionInstruction({
-    keys: [
-      {
-        pubkey: feePayer.publicKey,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: dataAccount.publicKey,
-        isSigner: true,
-        isWritable: false,
-      },
-    ],
-    programId: programId,
-    data: Buffer.concat([idx4, false_flag]),
-  });
-
-  const idx5 = Buffer.from(new Uint8Array([5]));
+  const idx2 = Buffer.from(new Uint8Array([2]));
   let closeIx = new TransactionInstruction({
     keys: [
       {
@@ -182,17 +129,19 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx5]),
+    data: Buffer.concat([idx2]),
+  });
+
+  let transferIx = SystemProgram.transfer({
+    fromPubkey: feePayer.publicKey,
+    lamports: LAMPORTS_PER_SOL,
+    toPubkey: dataAccount.publicKey
   });
 
   let tx = new Transaction();
   tx.add(initializeIx)
-    .add(updateIx)
-    .add(updateTypeIx)
-    .add(updateDataIx)
-    .add(finalizeIx)
-    .add(finalizeIxUnchecked)
-    .add(closeIx);
+  .add(updateIx)
+  .add(updateIx2)
 
   let txid = await sendAndConfirmTransaction(
     connection,

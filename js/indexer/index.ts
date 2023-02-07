@@ -2,15 +2,15 @@ import { Connection, PublicKey, PartiallyDecodedInstruction } from "@solana/web3
 import { Client } from 'pg';
 import * as dotenv from 'dotenv';
 import * as bs58 from "bs58";
-import { PROGRAM_ID } from "../src/common/constants";
 import { parseData } from "../src/parseData";
+import { BN } from "bn.js";
 
 let changes = 0;
 const MAX_CHANGES = 2;
 const DELAY = 10*1000;
 
 dotenv.config();
-const programId = new PublicKey(PROGRAM_ID);
+const programId = new PublicKey(process.env.PROGRAM_ID as string);
 const connection = new Connection("http://localhost:8899");
 
 const SELECTQUERY = "SELECT * FROM DataAccountIndexer WHERE data_account = $1";
@@ -36,72 +36,84 @@ const connectDb = async () => {
 }
 
 const populateDB = async () => {
+    let data_account_set = new Set<PublicKey>();
     connection.getSignaturesForAddress(programId)
     .then((transactions) => {
-        transactions.forEach((transaction, idx) => {
+        for (let idx = 0; idx < transactions.length; ++idx) {
+            const transaction = transactions[idx];
             connection.getParsedTransaction(transaction.signature)
             .then((txInfo) => {
                 const tx = txInfo?.transaction; 
                 const instructions = tx?.message.instructions;
-                instructions?.forEach((instruction) => {
-                    const ix = instruction as PartiallyDecodedInstruction;
-                    const decoded = bs58.decode(ix.data);
-                    // if FinalizeAccount instruction with verify_flag
-                    if (decoded.length === 2 && decoded[0] === 4) {
+                if (!instructions) return;
+                for (let i = instructions.length - 1; i >= 0; --i) {
+                    const ix = instructions[i] as PartiallyDecodedInstruction;
+                    if (!ix.data) return;              
+                    let decoded = bs58.decode(ix.data);
+                    // if UpdateDataAccount instruction with commit_flag
+                    if (decoded[0] === 1 && decoded[decoded.length - 2] === 1) {
                         if (ix.accounts.length < 2) {
                             console.error("Missing accounts");
                         }
                         const dataKey = ix.accounts[1];
-                        parseData(connection, dataKey).then((account_state) => {
-                            if (account_state.account_data) {
-                                const { data_type, data } = account_state.account_data;
-                                const dataPubKey = dataKey.toBase58();
-                                const dataJSON = data?.data.toJSON();
-                            
-                                connectDb().then((client) => {
-                                    // check if row already present
-                                    client?.query(SELECTQUERY, [dataPubKey])
-                                        .then((res) => {
-                                            // if present
-                                            if (res.rowCount === 1) {
-                                                client.query(
-                                                    UPDATEQUERY, 
-                                                    [data_type, dataJSON, transaction.signature, account_state.serialization_status, dataPubKey]
-                                                )
-                                                .then((res) => {
-                                                    if (res.rowCount === 1) {
-                                                        ++changes;
-                                                        console.log("updated row");
-                                                    }
-                                                    client.end();
-                                                })
-                                                .catch((err) => { console.log(err.stack); });
-                                            } 
-                                            // not present
-                                            else {
-                                                client?.query(
-                                                    INSERTQUERY,
-                                                    [dataPubKey, account_state.authority, data_type, dataJSON, transaction.signature, account_state.serialization_status]
-                                                )
-                                                .then((res) => {
-                                                    if (res.rowCount === 1) {
-                                                        ++changes;
-                                                        console.log("inserted row");
-                                                    }
-                                                    client.end();
-                                                })
-                                                .catch((err) => { console.error(err.stack); });
-                                            }
-                                        })
-                                        .catch((err) => { console.error(err.stack); });
-                                });
-                            }
-                        })
-                        
+                        const dataPubKey = dataKey.toBase58();
+                        // ensure its not reupdated by previous transaction ix
+                        if (data_account_set.has(dataKey)) continue;
+                        data_account_set.add(dataKey);
+                        const ix_data = Buffer.from(decoded.slice(1));
+                        const data_type = new BN(
+                            ix_data.subarray(0, 1),
+                            "le"
+                        ).toNumber();
+                        const data = ix_data.subarray(5);
+                        const dataJSON = data?.toJSON();
+
+                        parseData(connection, dataKey)
+                        .then((account_state) => {
+                            if (Object.keys(account_state).length === 0) return;
+                            const { authority, serialization_status } = account_state;
+                            connectDb().then((client) => {
+                                // check if row already present
+                                client?.query(SELECTQUERY, [dataPubKey])
+                                    .then((res) => {
+                                        // if present
+                                        if (res.rowCount === 1) {
+                                            client.query(
+                                                UPDATEQUERY, 
+                                                [data_type, dataJSON, transaction.signature, serialization_status, dataPubKey]
+                                            )
+                                            .then((res) => {
+                                                if (res.rowCount === 1) {
+                                                    ++changes;
+                                                    console.log("updated row");
+                                                }
+                                                client.end();
+                                            })
+                                            .catch((err) => { console.log(err.stack); });
+                                        } 
+                                        // not present
+                                        else {
+                                            client?.query(
+                                                INSERTQUERY,
+                                                [dataPubKey, authority, data_type, dataJSON, transaction.signature, serialization_status]
+                                            )
+                                            .then((res) => {
+                                                if (res.rowCount === 1) {
+                                                    ++changes;
+                                                    console.log("inserted row");
+                                                }
+                                                client.end();
+                                            })
+                                            .catch((err) => { console.error(err.stack); });
+                                        }
+                                    })
+                                    .catch((err) => { console.error(err.stack); });
+                            });
+                        });
                     }
-                });
+                }
             });
-        })
+        }
     });    
 };
 

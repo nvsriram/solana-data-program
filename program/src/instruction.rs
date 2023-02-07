@@ -1,10 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use shank::ShankInstruction;
 
-use crate::state::{
-    CloseDataAccountArgs, FinalizeDataAccountArgs, InitializeDataAccountArgs,
-    UpdateDataAccountArgs, UpdateDataAccountDataArgs, UpdateDataAccountDataTypeArgs,
-};
+use crate::state::{CloseDataAccountArgs, InitializeDataAccountArgs, UpdateDataAccountArgs};
 
 /// Instructions supported by the Data program.
 #[derive(BorshSerialize, BorshDeserialize, Clone, ShankInstruction)]
@@ -17,30 +14,12 @@ pub enum DataAccountInstruction {
     InitializeDataAccount(InitializeDataAccountArgs),
 
     /// This instruction updates the data of the data account corresponding to the authority
+    /// Allows user to specify whether the data should be committed or verified
     /// Requires data account to be initialized previously
     #[account(0, signer, writable, name = "authority", desc = "Authority account")]
     #[account(1, signer, writable, name = "data", desc = "Data account")]
     #[account(2, name = "system_program", desc = "System program")]
     UpdateDataAccount(UpdateDataAccountArgs),
-
-    /// This instruction updates the data type of the data account corresponding to the authority
-    /// Requires data account to be initialized previously
-    #[account(0, signer, name = "authority", desc = "Authority account")]
-    #[account(1, writable, name = "data", desc = "Data account")]
-    UpdateDataAccountDataType(UpdateDataAccountDataTypeArgs),
-
-    /// This instruction updates the data stored in the data account corresponding to the authority
-    /// Requires data account to be initialized previously
-    #[account(0, signer, writable, name = "authority", desc = "Authority account")]
-    #[account(1, signer, writable, name = "data", desc = "Data account")]
-    #[account(2, name = "system_program", desc = "System program")]
-    UpdateDataAccountData(UpdateDataAccountDataArgs),
-
-    /// This instruction updates the data type of the data account corresponding to the authority
-    /// Requires data account to be initialized previously
-    #[account(0, signer, name = "authority", desc = "Authority account")]
-    #[account(1, writable, name = "data", desc = "Data account")]
-    FinalizeDataAccount(FinalizeDataAccountArgs),
 
     /// This instruction unlinks the data account corresponding to the authority
     /// Requires data account to be initialized previously

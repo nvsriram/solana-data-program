@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde_json::Value;
 use shank::ShankAccount;
 use solana_program::pubkey::Pubkey;
 
@@ -16,7 +17,7 @@ pub enum DataStatusOption {
     UNINITIALIZED,
     INITIALIZED,
     UPDATED,
-    FINALIZED,
+    COMMITTED,
 }
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]
@@ -30,6 +31,28 @@ pub enum SerializationStatusOption {
 pub struct DataAccountData {
     pub data_type: DataTypeOption,
     pub data: Vec<u8>,
+}
+
+impl DataAccountData {
+    /// Verfies that the data conforms to the data_type
+    pub fn verify(&self) -> SerializationStatusOption {
+        if self.data.is_empty() || self.data_type == DataTypeOption::CUSTOM {
+            return SerializationStatusOption::UNVERIFIED;
+        }
+        let data = &self.data;
+        match self.data_type {
+            DataTypeOption::BORSH => SerializationStatusOption::UNVERIFIED,
+            DataTypeOption::JSON => {
+                let deserialized: Result<Value, serde_json::Error> = serde_json::from_slice(&data);
+                if deserialized.is_err() {
+                    SerializationStatusOption::FAILED
+                } else {
+                    SerializationStatusOption::VERIFIED
+                }
+            }
+            _ => SerializationStatusOption::FAILED,
+        }
+    }
 }
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, ShankAccount)]
@@ -59,35 +82,26 @@ impl DataAccountState {
         }
     }
     /// Constructor given account_data
-    pub fn new_with_account_data(copy: Self, account_data: DataAccountData) -> Self {
+    pub fn new_with_account_data(
+        copy: Self,
+        account_data: DataAccountData,
+        commit_flag: bool,
+        verify_flag: bool,
+    ) -> Self {
         DataAccountState {
-            data_status: DataStatusOption::UPDATED,
-            serialization_status: SerializationStatusOption::UNVERIFIED,
+            data_status: if commit_flag {
+                DataStatusOption::COMMITTED
+            } else {
+                DataStatusOption::UPDATED
+            },
+            serialization_status: if commit_flag && verify_flag {
+                account_data.verify()
+            } else if !commit_flag {
+                copy.serialization_status
+            } else {
+                SerializationStatusOption::UNVERIFIED
+            },
             account_data,
-            ..copy
-        }
-    }
-    /// Constructor given data_type
-    pub fn new_with_data_type(copy: Self, data_type: DataTypeOption) -> Self {
-        DataAccountState {
-            data_status: DataStatusOption::UPDATED,
-            serialization_status: SerializationStatusOption::UNVERIFIED,
-            account_data: DataAccountData {
-                data_type,
-                ..copy.account_data
-            },
-            ..copy
-        }
-    }
-    /// Constructor given data
-    pub fn new_with_data(copy: Self, data: Vec<u8>) -> Self {
-        DataAccountState {
-            data_status: DataStatusOption::UPDATED,
-            serialization_status: SerializationStatusOption::UNVERIFIED,
-            account_data: DataAccountData {
-                data,
-                ..copy.account_data
-            },
             ..copy
         }
     }
@@ -134,20 +148,7 @@ pub struct InitializeDataAccountArgs {
 pub struct UpdateDataAccountArgs {
     pub data_type: DataTypeOption,
     pub data: Vec<u8>,
-}
-
-#[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct UpdateDataAccountDataTypeArgs {
-    pub data_type: DataTypeOption,
-}
-
-#[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct UpdateDataAccountDataArgs {
-    pub data: Vec<u8>,
-}
-
-#[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct FinalizeDataAccountArgs {
+    pub commit_flag: bool,
     pub verify_flag: bool,
 }
 

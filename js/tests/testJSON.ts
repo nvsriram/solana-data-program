@@ -9,12 +9,14 @@ import {
   ConfirmOptions,
 } from "@solana/web3.js";
 import BN from "bn.js";
-import { PROGRAM_ID } from "../src/common/constants";
+import * as dotenv from 'dotenv';
 import { DataTypeOption } from "../src/common/types";
 import { parseJSON } from "../src/parseJSON";
 
+dotenv.config()
+
 const main = async () => {
-  const programId = new PublicKey(PROGRAM_ID);
+  const programId = new PublicKey(process.env.PROGRAM_ID as string);
 
   const connection = new Connection("http://localhost:8899");
 
@@ -58,6 +60,7 @@ const main = async () => {
     new Uint8Array(new BN(message.length).toArray("le", 4))
   );
   const data = Buffer.from(message, "ascii");
+  const verify_flag = Buffer.from(new Uint8Array([1]));
   let updateIx = new TransactionInstruction({
     keys: [
       {
@@ -77,32 +80,12 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx1, data_type, data_len, data]),
-  });
-
-  const idx4 = Buffer.from(new Uint8Array([4]));
-  const verify_flag = Buffer.from(new Uint8Array([1]));
-  let finalizeIx = new TransactionInstruction({
-    keys: [
-      {
-        pubkey: feePayer.publicKey,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: dataAccount.publicKey,
-        isSigner: true,
-        isWritable: false,
-      },
-    ],
-    programId: programId,
-    data: Buffer.concat([idx4, verify_flag]),
+    data: Buffer.concat([idx1, data_type, data_len, data, verify_flag, verify_flag]),
   });
 
   let tx = new Transaction();
   tx.add(initializeIx)
-    .add(updateIx)
-    .add(finalizeIx)
+    .add(updateIx);
 
   let txid = await sendAndConfirmTransaction(
     connection,
