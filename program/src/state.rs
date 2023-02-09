@@ -9,7 +9,6 @@ pub const DATA_VERSION: u8 = 0;
 pub enum DataTypeOption {
     CUSTOM = 0,
     JSON = 1,
-    BORSH = 2,
 }
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]
@@ -41,7 +40,6 @@ impl DataAccountData {
         }
         let data = &self.data;
         match self.data_type {
-            DataTypeOption::BORSH => SerializationStatusOption::UNVERIFIED,
             DataTypeOption::JSON => {
                 let deserialized: Result<Value, serde_json::Error> = serde_json::from_slice(&data);
                 if deserialized.is_err() {
@@ -60,6 +58,7 @@ pub struct DataAccountState {
     data_status: DataStatusOption,
     serialization_status: SerializationStatusOption,
     authority: Pubkey,
+    is_dynamic: bool,
     data_version: u8,
     account_data: DataAccountData,
 }
@@ -70,6 +69,7 @@ impl DataAccountState {
         data_status: DataStatusOption,
         serialization_status: SerializationStatusOption,
         authority: Pubkey,
+        is_dynamic: bool,
         data_version: u8,
         account_data: DataAccountData,
     ) -> Self {
@@ -77,6 +77,7 @@ impl DataAccountState {
             data_status,
             serialization_status,
             authority,
+            is_dynamic,
             data_version,
             account_data,
         }
@@ -125,6 +126,10 @@ impl DataAccountState {
     pub fn authority(&self) -> &Pubkey {
         &self.authority
     }
+    /// Get the dynamic flag
+    pub fn dynamic(&self) -> bool {
+        self.is_dynamic
+    }
     /// Get the current data version
     pub fn version(&self) -> u8 {
         self.data_version
@@ -141,13 +146,17 @@ impl DataAccountState {
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub struct InitializeDataAccountArgs {
+    pub authority: Pubkey,
     pub space: u64,
+    pub is_dynamic: bool,
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub struct UpdateDataAccountArgs {
     pub data_type: DataTypeOption,
     pub data: Vec<u8>,
+    pub offset: u64,
+    pub remove_remaining: bool,
     pub commit_flag: bool,
     pub verify_flag: bool,
 }

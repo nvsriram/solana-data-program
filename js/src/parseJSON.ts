@@ -11,8 +11,14 @@ export const parseJSON = async (connection: Connection, dataKey: PublicKey, debu
             }
             
             const {len, data} = account_state.account_data.data;
+            let data_json = data.toString();
             if (len > 0) {
-                const data_json = JSON.parse(data.toString());
+                try {
+                    data_json = JSON.parse(data.toString());
+                }
+                catch(err) {
+                    console.error("JSON parse error: ");
+                }
                 if (debug) {
                     console.log(JSON.stringify(data_json, null, 2));
                 }

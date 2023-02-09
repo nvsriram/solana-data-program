@@ -29,6 +29,7 @@ export interface IDataAccountState {
     data_status: DataStatusOption;
     serialization_status: SerializationStatusOption;
     authority: string;
+    is_dynamic: boolean;
     data_version: number;
     account_data: IDataAccountData;
 };

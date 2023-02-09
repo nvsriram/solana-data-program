@@ -26,6 +26,8 @@ pub enum DataAccountError {
     NotInitialized,
     #[error("Operation overflowed")]
     Overflow,
+    #[error("Data account should have sufficient space")]
+    InsufficientSpace,
 }
 
 impl From<DataAccountError> for ProgramError {

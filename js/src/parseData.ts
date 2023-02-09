@@ -18,14 +18,15 @@ export const parseData = async (connection: Connection, dataKey: PublicKey, debu
       account_state.authority = new PublicKey(
         data_account_state.subarray(2, 34)
       ).toBase58();
+      account_state.is_dynamic = data_account_state.subarray(34, 35).readUInt8() ? true : false;
       account_state.data_version = new BN(
-        data_account_state.subarray(34, 35),
+        data_account_state.subarray(35, 36),
         "le"
       ).toNumber();
       account_state.account_data = {} as IDataAccountData;
   
       // Data Account Data
-      const account_data = data_account_state.subarray(35);
+      const account_data = data_account_state.subarray(36);
       if (account_data) {
         account_state.account_data.data_type = new BN(
           account_data.subarray(0, 1),
