@@ -6,13 +6,14 @@ Solana Data Program is a program that allows users to intialize a _data account_
 
 - Allows System owned accounts to create and initialize a _data account_ that is linked to the System owned account to store data of any format (JSON, Borsh, Custom etc.)
 - Allows the `authority` of the _data account_ to modify the `data_type` and/or `data`
-- [`realloc`](https://docs.rs/solana-sdk/latest/solana_sdk/account_info/struct.AccountInfo.html#method.realloc)'s the _data account_ on every [update](#instruction-overview) instruction to ensure no additional storage is wasted
+- Optionally allows _data account_ to be dynamic i.e., [`realloc`](https://docs.rs/solana-sdk/latest/solana_sdk/account_info/struct.AccountInfo.html#method.realloc)'s the _data account_ on every [update](#instruction-overview) instruction to ensure no additional storage is wasted
+- Allows the `authority` to update the data starting at a particular offset
 - Allows the `authority` to optionally commit the data in the _data account_ by passing in a `commit_flag: bool` verify that the `data` is of the same data type as expected by the `data_type` field by passing in a `verify_flag: bool`
 
 ## Instruction Overview
 
 0. **InitializeDataAccount (`initialize`):** creates a new _data account_ that is linked to the _feePayer_ as its `authority`
-1. **UpdateDataAccount (`update`):** lets the `authority` modify the `data_type` and the `data`. Also lets the `authority` optionally commit the data (and optionally verify that the `data` conforms to the `data_type`)
+1. **UpdateDataAccount (`update`):** lets the `authority` modify the `data_type` and the `data` starting at a particular `offset`. If the _data account_ is set to be dynamic, it down/up reallocs as necessary. Also lets the `authority` optionally commit the data (and optionally verify that the `data` conforms to the `data_type`)
 2. **CloseDataAccount (`close`):** lets the `authority` close the _data account_
 
 ## Indexer Support

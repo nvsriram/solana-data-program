@@ -29,11 +29,13 @@ const main = async () => {
   await connection.requestAirdrop(feePayer.publicKey, 2e9);
   console.log("Airdrop received");
 
-  const object = { message: "Hello World!", author: "Jane Doe" };
-  const message = JSON.stringify(object);
+  const old = "{\"message\":\"Hello World!\"";
+  const message = ",\"author\":\"Jane Doe\"}"
 
   const idx0 = Buffer.from(new Uint8Array([0]));
   const space = Buffer.from(new Uint8Array(new BN(0).toArray("le", 8)));
+  const dynamic = Buffer.from(new Uint8Array([0]));
+  const authority = feePayer.publicKey.toBuffer();
   let initializeIx = new TransactionInstruction({
     keys: [
       {
@@ -53,17 +55,20 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx0, space]),
+    data: Buffer.concat([idx0, authority, space, dynamic]),
   });
-
+  
   const idx1 = Buffer.from(new Uint8Array([1]));
+  const offset0 = Buffer.from(new Uint8Array(new BN(0).toArray("le", 8)));
+  const offset1 = Buffer.from(new Uint8Array(new BN(old.length).toArray("le", 8)));
+  const true_flag = Buffer.from(new Uint8Array([1]));
+  const false_flag = Buffer.from(new Uint8Array([0]));
+  
   const data_type = Buffer.from(new Uint8Array(new BN(DataTypeOption.CUSTOM).toArray("le", 1)));
   const data_len = Buffer.from(
-    new Uint8Array(new BN(message.length).toArray("le", 4))
+    new Uint8Array(new BN(old.length).toArray("le", 4))
   );
-  const commit_flag = Buffer.from(new Uint8Array([1]));
-  const verify_flag = Buffer.from(new Uint8Array([1]));
-  const data = Buffer.from(message, "ascii");
+  const data = Buffer.from(old, "ascii");
   let updateIx = new TransactionInstruction({
     keys: [
       {
@@ -83,17 +88,15 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx1, data_type, data_len, data, commit_flag, verify_flag]),
+    data: Buffer.concat([idx1, data_type, data_len, data, offset1, true_flag, true_flag, true_flag]),
   });
-
-  const new_object = { message: "Jane, hello. Have a great day!", author: "John Doe" };
-  const new_message = JSON.stringify(new_object);
+  
   const len = Buffer.from(
-    new Uint8Array(new BN(new_message.length).toArray("le", 4))
-  );
-  const new_data = Buffer.from(new_message, "ascii");
-  const unverify_flag = Buffer.from(new Uint8Array([0]));
-  let updateIx2 = new TransactionInstruction({
+    new Uint8Array(new BN(message.length).toArray("le", 4))
+    );
+    const new_data = Buffer.from(message, "ascii");
+    const unverify_flag = Buffer.from(new Uint8Array([0]));
+    let updateIx2 = new TransactionInstruction({
     keys: [
       {
         pubkey: feePayer.publicKey,
@@ -112,7 +115,7 @@ const main = async () => {
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx1, data_type, len, new_data, verify_flag, unverify_flag]),
+    data: Buffer.concat([idx1, data_type, len, new_data, offset0, true_flag, true_flag, true_flag]),
   });
 
   const idx2 = Buffer.from(new Uint8Array([2]));
@@ -134,9 +137,9 @@ const main = async () => {
   });
 
   let tx = new Transaction();
-  // tx.add(initializeIx)
-  tx.add(updateIx)
-  tx.add(updateIx2)
+  tx.add(initializeIx)
+  tx.add(updateIx);
+  tx.add(updateIx2);
 
   let txid = await sendAndConfirmTransaction(
     connection,

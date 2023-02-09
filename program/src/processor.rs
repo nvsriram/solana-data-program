@@ -47,7 +47,8 @@ impl Processor {
                 let account_state = DataAccountState::new(
                     DataStatusOption::INITIALIZED,
                     SerializationStatusOption::UNVERIFIED,
-                    *authority.key,
+                    args.authority,
+                    args.is_dynamic,
                     DATA_VERSION,
                     account_data,
                 );
@@ -134,19 +135,54 @@ impl Processor {
                 msg!("account_state: {:?}", account_state);
 
                 let old_len = account_state.data().data.len();
-                let new_len = args.data.len();
+                let offset = args.offset.min(old_len as u64) as usize;
+                let end_len = offset + args.data.len();
+
+                // ensure static data_account has sufficient space
+                if !account_state.dynamic() && end_len > old_len {
+                    return Err(DataAccountError::InsufficientSpace.into());
+                }
+
+                let new_len = if !account_state.dynamic() {
+                    old_len
+                } else if args.remove_remaining {
+                    end_len
+                } else {
+                    end_len.max(old_len)
+                };
+
+                let data = if args.remove_remaining || old_len <= end_len {
+                    [&account_state.data().data[..offset], &args.data].concat()
+                } else {
+                    [
+                        &account_state.data().data[..offset],
+                        &args.data,
+                        &account_state.data().data[end_len..],
+                    ]
+                    .concat()
+                };
 
                 // update data_account with new account_data
                 let new_account_data = DataAccountData {
                     data_type: args.data_type,
-                    data: args.data,
+                    data,
                 };
+                msg!(
+                    "new_data: {:?}, offset: {}, remove_remaining: {}",
+                    &args.data,
+                    offset,
+                    args.remove_remaining
+                );
+                msg!("old_data: {:?}", &account_state.data().data);
+
                 let new_account_state = DataAccountState::new_with_account_data(
                     account_state,
                     new_account_data,
                     args.commit_flag,
                     args.verify_flag,
                 );
+
+                msg!("new_account_state: {:?}", &new_account_state);
 
                 // ensure account_data has enough space by reallocing if needed
                 if old_len != new_len {
