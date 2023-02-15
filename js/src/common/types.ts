@@ -15,6 +15,7 @@ export enum DataTypeOption {
     CUSTOM = 0,
     JSON = 1,
     BORSH = 2,
+    PNG = 3
 }
 
 export interface IDataAccountData {

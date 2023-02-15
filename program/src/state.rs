@@ -9,6 +9,8 @@ pub const DATA_VERSION: u8 = 0;
 pub enum DataTypeOption {
     CUSTOM = 0,
     JSON = 1,
+    BORSH = 2,
+    PNG = 3,
 }
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]

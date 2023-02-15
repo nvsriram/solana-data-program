@@ -1,0 +1,89 @@
+{
+  "name": "Sneaker #186951057",
+  "symbol": "",
+  "description": "NFT Sneaker, use it in STEPN to move2earn",
+  "seller_fee_basis_points": 400,
+  "image": "https://arweave.net/8O0RbTuCIwaOz4R52Yus1qzfq3eRIjhgQxqUgdLWMXM",
+  "external_url": "https://stepn.com",
+  "properties": {
+    "files": [
+      {
+        "uri": "https://arweave.net/8O0RbTuCIwaOz4R52Yus1qzfq3eRIjhgQxqUgdLWMXM",
+        "type": "image/png"
+      }
+    ],
+    "category": "image",
+    "creators": [
+      {
+        "address": "STEPNq2UGeGSzCyGVr2nMQAzf8xuejwqebd84wcksCK",
+        "share": 100
+      }
+    ]
+  },
+  "attributes": [
+    {
+      "trait_type": "Sneaker type",
+      "value": "Walker"
+    },
+    {
+      "trait_type": "Sneaker quality",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Level",
+      "value": "5"
+    },
+    {
+      "trait_type": "Optimal Speed",
+      "value": "1.0-6.0km/h"
+    },
+    {
+      "trait_type": "Shoe-minting Count",
+      "value": "2/7"
+    },
+    {
+      "trait_type": "Efficiency",
+      "value": "2.6"
+    },
+    {
+      "trait_type": "Luck",
+      "value": "7.1"
+    },
+    {
+      "trait_type": "Comfortability",
+      "value": "3.9"
+    },
+    {
+      "trait_type": "Resilience",
+      "value": "4.8"
+    },
+    {
+      "trait_type": "Durability",
+      "value": "100/100"
+    },
+    {
+      "trait_type": "Socket 1",
+      "value": "Efficiency/unknown/empty"
+    },
+    {
+      "trait_type": "Socket 2",
+      "value": "Durability/unknown/empty"
+    },
+    {
+      "trait_type": "Socket 3",
+      "value": "Efficiency/unknown/empty"
+    },
+    {
+      "trait_type": "Socket 4",
+      "value": "Efficiency/unknown/empty"
+    },
+    {
+      "trait_type": "Badge",
+      "value": "None"
+    }
+  ],
+  "collection": {
+    "name": "Sneaker",
+    "family": "STEPN"
+  }
+}

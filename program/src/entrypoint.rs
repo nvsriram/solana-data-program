@@ -12,10 +12,9 @@ fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     msg!(
-        "process_instruction: {}: {} accounts, data={:?}",
+        "process_instruction: {}: {} accounts",
         program_id,
-        accounts.len(),
-        instruction_data
+        accounts.len()
     );
 
     Processor::process_instruction(program_id, accounts, instruction_data)

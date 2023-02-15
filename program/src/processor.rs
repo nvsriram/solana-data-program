@@ -32,7 +32,7 @@ impl Processor {
 
         match instruction {
             DataAccountInstruction::InitializeDataAccount(args) => {
-                msg!("Instruction: InitializeDataAccount");
+                msg!("InitializeDataAccount");
 
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
@@ -57,8 +57,6 @@ impl Processor {
                 let space = (account_state.try_to_vec()?).len();
                 let rent_exemption_amount = Rent::get()?.minimum_balance(space);
 
-                msg!("creating account with {} space", space);
-
                 let create_account_ix = system_instruction::create_account(
                     &authority.key,
                     &data_account.key,
@@ -74,43 +72,26 @@ impl Processor {
                         system_program.clone(),
                     ],
                 )?;
-
-                msg!("account created: {:?}", data_account);
-
                 // write to data_account data
                 account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
-
-                msg!(
-                    "data: {:?}",
-                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
-                );
 
                 Ok(())
             }
             DataAccountInstruction::UpdateDataAccount(args) => {
-                msg!("Instruction: UpdateDataAccount");
+                msg!("UpdateDataAccount");
+
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
                 let system_program = next_account_info(accounts_iter)?;
 
-                // ensure authority is signer
-                if !authority.is_signer {
+                // ensure authority and data_account are signer
+                if !authority.is_signer || !data_account.is_signer {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
-                // ensure authority is writable
-                if !authority.is_writable {
-                    return Err(DataAccountError::NotWriteable.into());
-                }
-
-                // ensure data_account is signer
-                if !data_account.is_signer {
-                    return Err(DataAccountError::NotSigner.into());
-                }
-
-                // ensure data_account is writeable
-                if !data_account.is_writable {
+                // ensure authority and data_account are writable
+                if !authority.is_writable || !data_account.is_writable {
                     return Err(DataAccountError::NotWriteable.into());
                 }
 
@@ -131,8 +112,6 @@ impl Processor {
                 if account_state.authority() != authority.key {
                     return Err(DataAccountError::InvalidAuthority.into());
                 }
-
-                msg!("account_state: {:?}", account_state);
 
                 let old_len = account_state.data().data.len();
                 let offset = args.offset.min(old_len as u64) as usize;
@@ -167,22 +146,12 @@ impl Processor {
                     data_type: args.data_type,
                     data,
                 };
-                msg!(
-                    "new_data: {:?}, offset: {}, remove_remaining: {}",
-                    &args.data,
-                    offset,
-                    args.remove_remaining
-                );
-                msg!("old_data: {:?}", &account_state.data().data);
-
                 let new_account_state = DataAccountState::new_with_account_data(
                     account_state,
                     new_account_data,
                     args.commit_flag,
                     args.verify_flag,
                 );
-
-                msg!("new_account_state: {:?}", &new_account_state);
 
                 // ensure account_data has enough space by reallocing if needed
                 if old_len != new_len {
@@ -217,27 +186,14 @@ impl Processor {
                     }
 
                     data_account.realloc(new_space, false)?;
-
-                    msg!(
-                        "transferred {} and realloc-ed {} as old:{} != new:{}",
-                        lamports_diff,
-                        new_space,
-                        old_len,
-                        new_len
-                    );
                 }
-
+                // write to data_accoount data
                 new_account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
-
-                msg!(
-                    "data: {:?}",
-                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?,
-                );
 
                 Ok(())
             }
             DataAccountInstruction::CloseDataAccount(_args) => {
-                msg!("Instruction: CloseDataAccount");
+                msg!("CloseDataAccount");
 
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
@@ -276,9 +232,6 @@ impl Processor {
                     return Err(DataAccountError::InvalidAuthority.into());
                 }
 
-                msg!("authority: {:?}", authority);
-                msg!("data_account: {:?}", data_account);
-
                 // transfer data_account lamports back to authority and reset data_account
                 let curr_lamports = authority.lamports();
                 **authority.lamports.borrow_mut() = curr_lamports
@@ -286,10 +239,6 @@ impl Processor {
                     .ok_or(DataAccountError::Overflow)?;
                 **data_account.lamports.borrow_mut() = 0;
                 data_account.data.borrow_mut().fill(0);
-
-                msg!("transferred lamports to authority");
-                msg!("authority: {:?}", authority);
-                msg!("data_account: {:?}", data_account);
 
                 Ok(())
             }

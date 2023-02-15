@@ -117,7 +117,7 @@ import {
     });
   
     let tx = new Transaction();
-    // tx.add(initializeIx)
+    // tx.add(initializeIx);
     tx.add(updateIx);
     tx.add(updateIx2);
   
