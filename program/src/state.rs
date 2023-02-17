@@ -4,6 +4,8 @@ use shank::ShankAccount;
 use solana_program::pubkey::Pubkey;
 
 pub const DATA_VERSION: u8 = 0;
+pub const METADATA_SIZE: usize = 41;
+// (1 + 1) + (1 + 1) + 32 + 1 + 1 + ((1 + 1) + 4);
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub enum DataTypeOption {
@@ -158,7 +160,7 @@ pub struct UpdateDataAccountArgs {
     pub data_type: DataTypeOption,
     pub data: Vec<u8>,
     pub offset: u64,
-    pub remove_remaining: bool,
+    pub realloc_down: bool,
     pub commit_flag: bool,
     pub verify_flag: bool,
 }

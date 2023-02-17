@@ -15,7 +15,7 @@ use crate::{
     instruction::DataAccountInstruction,
     state::{
         DataAccountData, DataAccountState, DataStatusOption, DataTypeOption,
-        SerializationStatusOption, DATA_VERSION,
+        SerializationStatusOption, DATA_VERSION, METADATA_SIZE,
     },
 };
 
@@ -54,7 +54,7 @@ impl Processor {
                 );
 
                 // create a data_account of given space
-                let space = (account_state.try_to_vec()?).len();
+                let space = METADATA_SIZE + args.space as usize;
                 let rent_exemption_amount = Rent::get()?.minimum_balance(space);
 
                 let create_account_ix = system_instruction::create_account(
@@ -100,7 +100,7 @@ impl Processor {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                let account_state =
+                let mut account_state =
                     DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
@@ -114,48 +114,24 @@ impl Processor {
                 }
 
                 let old_len = account_state.data().data.len();
-                let offset = args.offset.min(old_len as u64) as usize;
-                let end_len = offset + args.data.len();
+                let end_len = args.offset as usize + args.data.len();
 
                 // ensure static data_account has sufficient space
-                if !account_state.dynamic() && end_len > old_len {
+                if !account_state.dynamic() && old_len < end_len {
                     return Err(DataAccountError::InsufficientSpace.into());
                 }
 
                 let new_len = if !account_state.dynamic() {
                     old_len
-                } else if args.remove_remaining {
+                } else if args.realloc_down {
                     end_len
                 } else {
-                    end_len.max(old_len)
+                    old_len.max(end_len)
                 };
-
-                let data = if args.remove_remaining || old_len <= end_len {
-                    [&account_state.data().data[..offset], &args.data].concat()
-                } else {
-                    [
-                        &account_state.data().data[..offset],
-                        &args.data,
-                        &account_state.data().data[end_len..],
-                    ]
-                    .concat()
-                };
-
-                // update data_account with new account_data
-                let new_account_data = DataAccountData {
-                    data_type: args.data_type,
-                    data,
-                };
-                let new_account_state = DataAccountState::new_with_account_data(
-                    account_state,
-                    new_account_data,
-                    args.commit_flag,
-                    args.verify_flag,
-                );
 
                 // ensure account_data has enough space by reallocing if needed
                 if old_len != new_len {
-                    let new_space = (new_account_state.try_to_vec()?).len();
+                    let new_space = METADATA_SIZE + new_len;
                     let new_minimum_balance = Rent::get()?.minimum_balance(new_space);
                     let lamports_diff = if old_len < new_len {
                         new_minimum_balance.saturating_sub(data_account.lamports())
@@ -187,8 +163,11 @@ impl Processor {
 
                     data_account.realloc(new_space, false)?;
                 }
-                // write to data_accoount data
-                new_account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
+                account_state.data_mut().data_type = args.data_type;
+                account_state.data_mut().data.resize(new_len, 0);
+                account_state.data_mut().data[args.offset as usize..end_len]
+                    .copy_from_slice(&args.data);
+                account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
 
                 Ok(())
             }

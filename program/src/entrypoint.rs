@@ -1,5 +1,5 @@
 use crate::processor::Processor;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 #[cfg(not(feature = "no-entrypoint"))]
 use solana_program::entrypoint;
@@ -11,11 +11,5 @@ fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    msg!(
-        "process_instruction: {}: {} accounts",
-        program_id,
-        accounts.len()
-    );
-
     Processor::process_instruction(program_id, accounts, instruction_data)
 }
