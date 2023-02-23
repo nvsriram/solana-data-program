@@ -3,7 +3,7 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    program::invoke,
+    program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
     system_instruction,
@@ -14,8 +14,8 @@ use crate::{
     error::DataAccountError,
     instruction::DataAccountInstruction,
     state::{
-        DataAccountData, DataAccountState, DataStatusOption, DataTypeOption,
-        SerializationStatusOption, DATA_VERSION, METADATA_SIZE,
+        DataAccountMetadata, DataStatusOption, DataTypeOption, SerializationStatusOption,
+        DATA_VERSION, METADATA_SIZE, PDA_SEED,
     },
 };
 
@@ -37,43 +37,71 @@ impl Processor {
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
+                let metadata_account = next_account_info(accounts_iter)?;
                 let system_program = next_account_info(accounts_iter)?;
 
-                // create initial state for data_account data
-                let account_data = DataAccountData {
-                    data_type: DataTypeOption::CUSTOM,
-                    data: vec![0; args.space as usize],
-                };
-                let account_state = DataAccountState::new(
+                // create a data_account of given space if not done so already
+                if !args.is_created {
+                    let space = args.space as usize;
+                    let rent_exemption_amount = Rent::get()?.minimum_balance(space);
+
+                    let create_account_ix = system_instruction::create_account(
+                        &authority.key,
+                        &data_account.key,
+                        rent_exemption_amount,
+                        space as u64,
+                        &program_id,
+                    );
+                    invoke(
+                        &create_account_ix,
+                        &[
+                            authority.clone(),
+                            data_account.clone(),
+                            system_program.clone(),
+                        ],
+                    )?;
+                }
+                data_account.data.borrow_mut().fill(0);
+
+                // create data_account pda to store metadata
+                let (pda, bump_seed) = Pubkey::find_program_address(
+                    &[PDA_SEED, data_account.key.as_ref()],
+                    program_id,
+                );
+                // ensure the pda is valid
+                if pda != *metadata_account.key {
+                    return Err(DataAccountError::InvalidPDA.into());
+                }
+                // create pda account
+                let rent_exemption_amount = Rent::get()?.minimum_balance(METADATA_SIZE);
+                let create_pda_ix = system_instruction::create_account(
+                    &authority.key,
+                    &metadata_account.key,
+                    rent_exemption_amount,
+                    METADATA_SIZE as u64,
+                    &program_id,
+                );
+                invoke_signed(
+                    &create_pda_ix,
+                    &[
+                        authority.clone(),
+                        data_account.clone(),
+                        metadata_account.clone(),
+                        system_program.clone(),
+                    ],
+                    &[&[PDA_SEED, data_account.key.as_ref(), &[bump_seed]]],
+                )?;
+                // create initial state for data_account metadata and write to it
+                let account_metadata = DataAccountMetadata::new(
                     DataStatusOption::INITIALIZED,
                     SerializationStatusOption::UNVERIFIED,
                     args.authority,
                     args.is_dynamic,
                     DATA_VERSION,
-                    account_data,
+                    DataTypeOption::CUSTOM,
+                    bump_seed,
                 );
-
-                // create a data_account of given space
-                let space = METADATA_SIZE + args.space as usize;
-                let rent_exemption_amount = Rent::get()?.minimum_balance(space);
-
-                let create_account_ix = system_instruction::create_account(
-                    &authority.key,
-                    &data_account.key,
-                    rent_exemption_amount,
-                    space as u64,
-                    &program_id,
-                );
-                invoke(
-                    &create_account_ix,
-                    &[
-                        authority.clone(),
-                        data_account.clone(),
-                        system_program.clone(),
-                    ],
-                )?;
-                // write to data_account data
-                account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
+                account_metadata.serialize(&mut &mut metadata_account.data.borrow_mut()[..])?;
 
                 Ok(())
             }
@@ -83,6 +111,7 @@ impl Processor {
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
+                let metadata_account = next_account_info(accounts_iter)?;
                 let system_program = next_account_info(accounts_iter)?;
 
                 // ensure authority and data_account are signer
@@ -90,38 +119,54 @@ impl Processor {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
-                // ensure authority and data_account are writable
-                if !authority.is_writable || !data_account.is_writable {
+                // ensure authority, data_account, and metadata_account are writable
+                if !authority.is_writable
+                    || !data_account.is_writable
+                    || !metadata_account.is_writable
+                {
                     return Err(DataAccountError::NotWriteable.into());
                 }
 
                 // ensure length is not 0
-                if data_account.data_is_empty() {
+                if metadata_account.data_is_empty() {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                let mut account_state =
-                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
+                let mut account_metadata =
+                    DataAccountMetadata::try_from_slice(&metadata_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if *account_state.data_status() == DataStatusOption::UNINITIALIZED {
+                if *account_metadata.data_status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
                 // ensure data_account is being written to by valid authority
-                if account_state.authority() != authority.key {
+                if account_metadata.authority() != authority.key {
                     return Err(DataAccountError::InvalidAuthority.into());
                 }
 
-                let old_len = account_state.data().data.len();
+                // ensure the metadata_account corresponds to the data_account
+                let pda = Pubkey::create_program_address(
+                    &[
+                        PDA_SEED,
+                        data_account.key.as_ref(),
+                        &[account_metadata.bump_seed()],
+                    ],
+                    program_id,
+                )?;
+                if pda != *metadata_account.key {
+                    return Err(DataAccountError::InvalidPDA.into());
+                }
+
+                let old_len = data_account.data_len();
                 let end_len = args.offset as usize + args.data.len();
 
                 // ensure static data_account has sufficient space
-                if !account_state.dynamic() && old_len < end_len {
+                if !account_metadata.dynamic() && old_len < end_len {
                     return Err(DataAccountError::InsufficientSpace.into());
                 }
 
-                let new_len = if !account_state.dynamic() {
+                let new_len = if !account_metadata.dynamic() {
                     old_len
                 } else if args.realloc_down {
                     end_len
@@ -129,9 +174,13 @@ impl Processor {
                     old_len.max(end_len)
                 };
 
-                // ensure account_data has enough space by reallocing if needed
+                // update the metadata_account
+                account_metadata.set_data_type(args.data_type);
+                account_metadata.serialize(&mut &mut metadata_account.data.borrow_mut()[..])?;
+
+                // ensure data_account has enough space by reallocing if needed
                 if old_len != new_len {
-                    let new_space = METADATA_SIZE + new_len;
+                    let new_space = new_len;
                     let new_minimum_balance = Rent::get()?.minimum_balance(new_space);
                     let lamports_diff = if old_len < new_len {
                         new_minimum_balance.saturating_sub(data_account.lamports())
@@ -163,11 +212,10 @@ impl Processor {
 
                     data_account.realloc(new_space, false)?;
                 }
-                account_state.data_mut().data_type = args.data_type;
-                account_state.data_mut().data.resize(new_len, 0);
-                account_state.data_mut().data[args.offset as usize..end_len]
+
+                // update the data_account
+                data_account.data.borrow_mut()[args.offset as usize..end_len]
                     .copy_from_slice(&args.data);
-                account_state.serialize(&mut &mut data_account.data.borrow_mut()[..])?;
 
                 Ok(())
             }
@@ -177,39 +225,59 @@ impl Processor {
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
+                let metadata_account = next_account_info(accounts_iter)?;
 
-                // ensure authority is writeable
-                if !authority.is_writable {
-                    return Err(DataAccountError::NotWriteable.into());
-                }
-
-                // ensure data_account is signer
-                if !data_account.is_signer {
+                // ensure authority is signer
+                if !authority.is_signer {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
-                // ensure data_account is writeable
-                if !data_account.is_writable {
+                // ensure authority, data_account, and metadata_account are writable
+                if !authority.is_writable
+                    || !data_account.is_writable
+                    || !metadata_account.is_writable
+                {
                     return Err(DataAccountError::NotWriteable.into());
                 }
 
                 // ensure length is not 0
-                if data_account.data_is_empty() {
+                if data_account.data_is_empty() || metadata_account.data_is_empty() {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 
-                let account_state =
-                    DataAccountState::try_from_slice(&data_account.try_borrow_data()?)?;
+                let account_metadata =
+                    DataAccountMetadata::try_from_slice(&metadata_account.try_borrow_data()?)?;
 
                 // ensure data_account is initialized
-                if *account_state.data_status() == DataStatusOption::UNINITIALIZED {
+                if *account_metadata.data_status() == DataStatusOption::UNINITIALIZED {
                     return Err(DataAccountError::NotInitialized.into());
                 }
 
                 // ensure data_account is being closed by valid authority
-                if account_state.authority() != authority.key {
+                if account_metadata.authority() != authority.key {
                     return Err(DataAccountError::InvalidAuthority.into());
                 }
+
+                // ensure the metadata_account corresponds to the data_account
+                let pda = Pubkey::create_program_address(
+                    &[
+                        PDA_SEED,
+                        data_account.key.as_ref(),
+                        &[account_metadata.bump_seed()],
+                    ],
+                    program_id,
+                )?;
+                if pda != *metadata_account.key {
+                    return Err(DataAccountError::InvalidPDA.into());
+                }
+
+                // transfer metadata_account lamports back to authority and reset metadata_account
+                let curr_lamports = authority.lamports();
+                **authority.lamports.borrow_mut() = curr_lamports
+                    .checked_add(metadata_account.lamports())
+                    .ok_or(DataAccountError::Overflow)?;
+                **metadata_account.lamports.borrow_mut() = 0;
+                metadata_account.data.borrow_mut().fill(0);
 
                 // transfer data_account lamports back to authority and reset data_account
                 let curr_lamports = authority.lamports();

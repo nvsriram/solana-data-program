@@ -18,7 +18,7 @@ pub enum DataAccountError {
     InvalidSysProgram,
     #[error("Account should be valid owner of data account")]
     InvalidAuthority,
-    #[error("Account should be PDA of Echo program")]
+    #[error("Account should be PDA of data account")]
     InvalidPDA,
     #[error("Cannot reinitialize previously initialized data account")]
     AlreadyInitialized,

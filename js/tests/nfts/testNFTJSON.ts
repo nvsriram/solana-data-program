@@ -10,20 +10,28 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 import * as dotenv from 'dotenv';
-import { loadJSONFromFile, loadKeypairFromFile } from '../../src/common/utils'
+import { loadJSONFromFile, loadKeypairFromFile, PDA_SEED } from '../../src/common/utils'
 import { DataTypeOption } from "../../src/common/types";
 import { parseJSON } from "../../src/parseJSON";
 
 dotenv.config();
 
-const PART_SIZE = 800;
+const PART_SIZE = 881;
 const uploadData = async (connection: Connection, programId: PublicKey, feePayer: Keypair, dataAccount: Keypair, message: string) => {
-  const parts = message.length / PART_SIZE;
+  const [pda, _bumpSeed] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(PDA_SEED, "ascii"),
+      dataAccount.publicKey.toBuffer(),
+    ],
+    programId
+  );
+
+  const parts = Math.ceil(message.length / PART_SIZE);
   let current = 0;
   while (current < parts) {
-    console.log("Requesting Airdrop of 1 SOL...");
-    await connection.requestAirdrop(feePayer.publicKey, 2e9);
-    console.log("Airdrop received");
+    // console.log("Requesting Airdrop of 1 SOL...");
+    // await connection.requestAirdrop(feePayer.publicKey, 2e9);
+    // console.log("Airdrop received");
     
     const part = message.slice(current * PART_SIZE, (current + 1) * PART_SIZE);
     
@@ -37,7 +45,7 @@ const uploadData = async (connection: Connection, programId: PublicKey, feePayer
       new Uint8Array(new BN(part.length).toArray("le", 4))
     );
     const data = Buffer.from(part, "ascii");
-    let updateIx = new TransactionInstruction({
+    const updateIx = new TransactionInstruction({
       keys: [
         {
           pubkey: feePayer.publicKey,
@@ -50,19 +58,24 @@ const uploadData = async (connection: Connection, programId: PublicKey, feePayer
           isWritable: true,
         },
         {
+          pubkey: pda,
+          isSigner: false,
+          isWritable: true,
+        },
+        {
           pubkey: SystemProgram.programId,
           isSigner: false,
           isWritable: false,
         },
       ],
       programId: programId,
-      data: Buffer.concat([idx1, data_type, data_len, data, offset, false_flag, true_flag, true_flag]),
+      data: Buffer.concat([idx1, data_type, data_len, data, offset, true_flag, true_flag, true_flag]),
     });
 
-    let tx = new Transaction();
+    const tx = new Transaction();
     tx.add(updateIx);
 
-    let txid = await sendAndConfirmTransaction(
+    const txid = await sendAndConfirmTransaction(
       connection,
       tx,
       [feePayer, dataAccount],
@@ -72,12 +85,11 @@ const uploadData = async (connection: Connection, programId: PublicKey, feePayer
         confirmation: "confirmed",
       } as ConfirmOptions
     );
-    console.log(`https://explorer.solana.com/tx/${txid}?cluster=custom`);
-
-    let _ = await parseJSON(connection, dataAccount.publicKey, true);
+    console.log(`${(current + 1)/parts * 100}%: https://explorer.solana.com/tx/${txid}?cluster=devnet`);
 
     ++current;
   }
+  await parseJSON(connection, dataAccount.publicKey, pda, true);
 }
 
 const main = async () => {
@@ -88,19 +100,21 @@ const main = async () => {
   const feePayer = loadKeypairFromFile("/Users/nvsriram/code/solana-acount/program/target/deploy/feepayer-keypair.json");
   const dataAccount = loadKeypairFromFile("/Users/nvsriram/code/solana-acount/program/target/deploy/dataaccount-keypair.json");
 
-  console.log("Requesting Airdrop of 1 SOL...");
-  await connection.requestAirdrop(feePayer.publicKey, 1e9);
-  console.log("Airdrop received");
+  const [pda, _bumpSeed] = PublicKey.findProgramAddressSync(
+    [
+       Buffer.from(PDA_SEED, "ascii"),
+       dataAccount.publicKey.toBuffer(),
+   ],
+   programId
+  );
+  console.log(pda.toBase58(), _bumpSeed);
 
-  const raw = loadJSONFromFile("/Users/nvsriram/code/solana-acount/js/tests/nfts/testNFT.json");
-  const json = JSON.parse(raw);
-  const old = JSON.stringify(json);
-  
   const idx0 = Buffer.from(new Uint8Array([0]));
-  const space = Buffer.from(new Uint8Array(new BN(old.length).toArray("le", 8)));
-  const dynamic = Buffer.from(new Uint8Array([0]));
+  const space = Buffer.from(new Uint8Array(new BN(10240).toArray("le", 8)));
+  const dynamic = Buffer.from(new Uint8Array([1]));
   const authority = feePayer.publicKey.toBuffer();
-  let initializeIx = new TransactionInstruction({
+  const is_created = Buffer.from(new Uint8Array([0]));
+  const initializeIx = new TransactionInstruction({
     keys: [
       {
         pubkey: feePayer.publicKey,
@@ -113,19 +127,24 @@ const main = async () => {
         isWritable: true,
       },
       {
+        pubkey: pda,
+        isSigner: false,
+        isWritable: true,
+      },
+      {
         pubkey: SystemProgram.programId,
         isSigner: false,
         isWritable: false,
       },
     ],
     programId: programId,
-    data: Buffer.concat([idx0, authority, space, dynamic]),
+    data: Buffer.concat([idx0, authority, space, dynamic, is_created]),
   });
 
-  let tx = new Transaction();
+  const tx = new Transaction();
   tx.add(initializeIx);
 
-  let txid = await sendAndConfirmTransaction(
+  const txid = await sendAndConfirmTransaction(
     connection,
     tx,
     [feePayer, dataAccount],
@@ -136,8 +155,12 @@ const main = async () => {
     } as ConfirmOptions
   );
   console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+  await parseJSON(connection, dataAccount.publicKey, pda, true);
 
-  let _ = await parseJSON(connection, dataAccount.publicKey, true);
+
+  const raw = loadJSONFromFile("/Users/nvsriram/code/solana-acount/js/tests/nfts/testNFT.json");
+  const json = JSON.parse(raw);
+  const old = JSON.stringify(json);
   await uploadData(connection, programId, feePayer, dataAccount, old);
 };
 

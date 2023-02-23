@@ -4,15 +4,14 @@ use shank::ShankAccount;
 use solana_program::pubkey::Pubkey;
 
 pub const DATA_VERSION: u8 = 0;
-pub const METADATA_SIZE: usize = 41;
-// (1 + 1) + (1 + 1) + 32 + 1 + 1 + ((1 + 1) + 4);
+pub const METADATA_SIZE: usize = 1 + 1 + 32 + 1 + 1 + 1 + 1;
+pub const PDA_SEED: &[u8] = b"data_account_metadata";
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub enum DataTypeOption {
     CUSTOM = 0,
     JSON = 1,
-    BORSH = 2,
-    PNG = 3,
+    PNG = 2,
 }
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]
@@ -30,44 +29,36 @@ pub enum SerializationStatusOption {
     FAILED,
 }
 
-#[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
-pub struct DataAccountData {
-    pub data_type: DataTypeOption,
-    pub data: Vec<u8>,
-}
-
-impl DataAccountData {
-    /// Verfies that the data conforms to the data_type
-    pub fn verify(&self) -> SerializationStatusOption {
-        if self.data.is_empty() || self.data_type == DataTypeOption::CUSTOM {
-            return SerializationStatusOption::UNVERIFIED;
-        }
-        let data = &self.data;
-        match self.data_type {
-            DataTypeOption::JSON => {
-                let deserialized: Result<Value, serde_json::Error> = serde_json::from_slice(&data);
-                if deserialized.is_err() {
-                    SerializationStatusOption::FAILED
-                } else {
-                    SerializationStatusOption::VERIFIED
-                }
+/// Verfies that the data conforms to the data_type
+pub fn verify(data: &[u8], data_type: DataTypeOption) -> SerializationStatusOption {
+    if data.is_empty() || data_type == DataTypeOption::CUSTOM {
+        return SerializationStatusOption::UNVERIFIED;
+    }
+    match data_type {
+        DataTypeOption::JSON => {
+            let deserialized: Result<Value, serde_json::Error> = serde_json::from_slice(&data);
+            if deserialized.is_err() {
+                SerializationStatusOption::FAILED
+            } else {
+                SerializationStatusOption::VERIFIED
             }
-            _ => SerializationStatusOption::FAILED,
         }
+        _ => SerializationStatusOption::FAILED,
     }
 }
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, ShankAccount)]
-pub struct DataAccountState {
+pub struct DataAccountMetadata {
     data_status: DataStatusOption,
     serialization_status: SerializationStatusOption,
     authority: Pubkey,
     is_dynamic: bool,
     data_version: u8,
-    account_data: DataAccountData,
+    data_type: DataTypeOption,
+    bump_seed: u8,
 }
 
-impl DataAccountState {
+impl DataAccountMetadata {
     /// Default constructor
     pub fn new(
         data_status: DataStatusOption,
@@ -75,42 +66,20 @@ impl DataAccountState {
         authority: Pubkey,
         is_dynamic: bool,
         data_version: u8,
-        account_data: DataAccountData,
+        data_type: DataTypeOption,
+        bump_seed: u8,
     ) -> Self {
-        DataAccountState {
+        DataAccountMetadata {
             data_status,
             serialization_status,
             authority,
             is_dynamic,
             data_version,
-            account_data,
+            data_type,
+            bump_seed,
         }
     }
-    /// Constructor given account_data
-    pub fn new_with_account_data(
-        copy: Self,
-        account_data: DataAccountData,
-        commit_flag: bool,
-        verify_flag: bool,
-    ) -> Self {
-        DataAccountState {
-            data_status: if commit_flag {
-                DataStatusOption::COMMITTED
-            } else {
-                DataStatusOption::UPDATED
-            },
-            serialization_status: if commit_flag && verify_flag {
-                account_data.verify()
-            } else if !commit_flag {
-                copy.serialization_status
-            } else {
-                SerializationStatusOption::UNVERIFIED
-            },
-            account_data,
-            ..copy
-        }
-    }
-    /// Set data_status
+    /// Set the data_status
     pub fn set_data_status(&mut self, data_status: DataStatusOption) {
         self.data_status = data_status;
     }
@@ -118,7 +87,7 @@ impl DataAccountState {
     pub fn data_status(&self) -> &DataStatusOption {
         &self.data_status
     }
-    /// Set serialization_status
+    /// Set the serialization_status
     pub fn set_serialization_status(&mut self, serialization_status: SerializationStatusOption) {
         self.serialization_status = serialization_status;
     }
@@ -138,13 +107,17 @@ impl DataAccountState {
     pub fn version(&self) -> u8 {
         self.data_version
     }
-    /// Get the reference to data structure
-    pub fn data(&self) -> &DataAccountData {
-        &self.account_data
+    /// Get the data_type
+    pub fn data_type(&self) -> &DataTypeOption {
+        &self.data_type
     }
-    /// Get the mutable reference to data structure
-    pub fn data_mut(&mut self) -> &mut DataAccountData {
-        &mut self.account_data
+    /// Set the data_type
+    pub fn set_data_type(&mut self, data_type: DataTypeOption) {
+        self.data_type = data_type;
+    }
+    /// Get the bump seed
+    pub fn bump_seed(&self) -> u8 {
+        self.bump_seed
     }
 }
 
@@ -153,6 +126,7 @@ pub struct InitializeDataAccountArgs {
     pub authority: Pubkey,
     pub space: u64,
     pub is_dynamic: bool,
+    pub is_created: bool,
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]

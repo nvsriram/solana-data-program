@@ -14,11 +14,10 @@ enum SerializationStatusOption {
 export enum DataTypeOption {
     CUSTOM = 0,
     JSON = 1,
-    BORSH = 2,
-    PNG = 3
+    PNG = 2
 }
 
-export interface IDataAccountData {
+export interface IDataAccountDataLegacy {
     data_type: number;
     data?: {
         len: number;
@@ -26,11 +25,26 @@ export interface IDataAccountData {
     };
 };
     
-export interface IDataAccountState {
+export interface IDataAccountStateLegacy {
     data_status: DataStatusOption;
     serialization_status: SerializationStatusOption;
     authority: string;
     is_dynamic: boolean;
     data_version: number;
-    account_data: IDataAccountData;
+    account_data: IDataAccountDataLegacy;
 };
+
+export interface IDataAccountMeta {
+    data_status: DataStatusOption;
+    serialization_status: SerializationStatusOption;
+    authority: string;
+    is_dynamic: boolean;
+    data_version: number;
+    data_type: number;
+    bump_seed: number;
+}
+
+export interface IDataAccount {
+    meta: IDataAccountMeta;
+    data?: Buffer;
+}

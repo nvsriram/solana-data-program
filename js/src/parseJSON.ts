@@ -1,25 +1,25 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { parseData } from "./parseData";
 
-export const parseJSON = async (connection: Connection, dataKey: PublicKey, debug?: boolean) => {
-    parseData(connection, dataKey, debug)
+export const parseJSON = async (connection: Connection, dataKey: PublicKey, metaKey: PublicKey, debug?: boolean) => {
+    parseData(connection, dataKey, metaKey, debug)
     .then((account_state) => {
-        if (account_state?.account_data?.data) {
+        if (account_state.data) {
             if (debug) {
-                console.log("Parsed Data:");
-                console.log(account_state);
+                console.log("Parsed Metadata:");
+                console.log(account_state.meta);
             }
             
-            const {len, data} = account_state.account_data.data;
+            const { data } = account_state;
             let data_json = data.toString();
-            if (len > 0) {
-                try {
-                    data_json = JSON.parse(data.toString());
-                }
-                catch(err) {
-                    console.error("JSON parse error: ");
-                }
+            if (data_json.length > 0) {
                 if (debug) {
+                    try {
+                        data_json = JSON.parse(data.toString());
+                    }
+                    catch(err) {
+                        console.error("JSON parse error: ");
+                    }
                     console.log(JSON.stringify(data_json, null, 2));
                 }
             }
