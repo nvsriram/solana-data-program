@@ -4,7 +4,7 @@ Solana Data Program is a program that allows users to intialize a _data account_
 
 ## Features
 
-- Allows System owned accounts to create and initialize a _data account_ that is linked to the System owned account to store data of any format (JSON, Borsh, Custom etc.)
+- Allows System owned accounts to create (if not done already) and initialize a _data account_ and _metadata account_ that is linked to the `authority` to store data of any format (JSON, PNG, Custom etc.)
 - Allows the `authority` of the _data account_ to modify the `data_type` and/or `data`
 - Optionally allows _data account_ to be dynamic i.e., [`realloc`](https://docs.rs/solana-sdk/latest/solana_sdk/account_info/struct.AccountInfo.html#method.realloc)'s the _data account_ on every [update](#instruction-overview) instruction to ensure no additional storage is wasted
 - Allows the `authority` to update the data starting at a particular offset
@@ -12,12 +12,13 @@ Solana Data Program is a program that allows users to intialize a _data account_
 
 ## Instruction Overview
 
-0. **InitializeDataAccount (`initialize`):** creates a new _data account_ that is linked to the _feePayer_ as its `authority`
+0. **InitializeDataAccount (`initialize`):** creates (if not done already) and initializes a _data account_ that is linked to the `authority`. It also creates and initializes a _metadata account_ that is a pda derived off of the _data account_ to store the metadata
 1. **UpdateDataAccount (`update`):** lets the `authority` modify the `data_type` and the `data` starting at a particular `offset`. If the _data account_ is set to be dynamic, it down/up reallocs as necessary. Also lets the `authority` optionally commit the data (and optionally verify that the `data` conforms to the `data_type`)
-2. **CloseDataAccount (`close`):** lets the `authority` close the _data account_
+2. **CloseDataAccount (`close`):** lets the `authority` close the _data account_ and the _metadata account_ and reclaim the lamports
 
-## Indexer Support
+## <s>Indexer Support</s> <i>[This is no longer maintained]</i>
 
+<s>
 This repo also contains a Typescript indexer that polls the Data Program for transactions and looks for the [**UpdateDataAccount**](#instruction-overview) instruction with a set `commit_flag` to populate the database (based on `.env` file configuration) with the committed data.
 
 ### Current Implementation
@@ -47,4 +48,4 @@ The current implementation handles all three [cases](#cases-to-consider).
 
 - Currently, the `serialization_status` can only be set on commit.
   - The reason for this is that it makes it easier for the indexer to only have to find a single instruction for the `data_type` and `data`, and use the state of the _data account_ for other fields like the `authority`, `serialization_status`, etc.
-  - What this also means, however, is that the `serialization_status` for a _data account_ with uncommitted data could still say that it is `VERIFIED`. All this means is that the data that was last committed was `VERIFIED` and does not denote the `serialization_status` of the current uncommitted data.
+  - What this also means, however, is that the `serialization_status` for a _data account_ with uncommitted data could still say that it is `VERIFIED`. All this means is that the data that was last committed was `VERIFIED` and does not denote the `serialization_status` of the current uncommitted data.</s>

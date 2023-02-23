@@ -11,7 +11,7 @@ pub const PDA_SEED: &[u8] = b"data_account_metadata";
 pub enum DataTypeOption {
     CUSTOM = 0,
     JSON = 1,
-    PNG = 2,
+    IMG = 2,
 }
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]

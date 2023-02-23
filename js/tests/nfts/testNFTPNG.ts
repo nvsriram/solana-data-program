@@ -40,7 +40,7 @@ const uploadData = async (connection: Connection, programId: PublicKey, feePayer
     const true_flag = Buffer.from(new Uint8Array([1]));
     const false_flag = Buffer.from(new Uint8Array([0]));
     
-    const data_type = Buffer.from(new Uint8Array(new BN(DataTypeOption.PNG).toArray("le", 1)));
+    const data_type = Buffer.from(new Uint8Array(new BN(DataTypeOption.IMG).toArray("le", 1)));
     const data_len = Buffer.from(
       new Uint8Array(new BN(part.length).toArray("le", 4))
     );

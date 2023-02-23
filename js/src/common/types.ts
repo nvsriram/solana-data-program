@@ -14,7 +14,7 @@ enum SerializationStatusOption {
 export enum DataTypeOption {
     CUSTOM = 0,
     JSON = 1,
-    PNG = 2
+    IMG = 2
 }
 
 export interface IDataAccountDataLegacy {
