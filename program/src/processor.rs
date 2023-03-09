@@ -32,10 +32,12 @@ impl Processor {
 
         match instruction {
             DataAccountInstruction::InitializeDataAccount(args) => {
-                msg!("InitializeDataAccount");
+                if args.debug {
+                    msg!("InitializeDataAccount");
+                }
 
                 let accounts_iter = &mut accounts.iter();
-                let authority = next_account_info(accounts_iter)?;
+                let feepayer = next_account_info(accounts_iter)?;
                 let data_account = next_account_info(accounts_iter)?;
                 let metadata_account = next_account_info(accounts_iter)?;
                 let system_program = next_account_info(accounts_iter)?;
@@ -46,7 +48,7 @@ impl Processor {
                     let rent_exemption_amount = Rent::get()?.minimum_balance(space);
 
                     let create_account_ix = system_instruction::create_account(
-                        &authority.key,
+                        &feepayer.key,
                         &data_account.key,
                         rent_exemption_amount,
                         space as u64,
@@ -55,11 +57,24 @@ impl Processor {
                     invoke(
                         &create_account_ix,
                         &[
-                            authority.clone(),
+                            feepayer.clone(),
                             data_account.clone(),
                             system_program.clone(),
                         ],
                     )?;
+
+                    if args.debug {
+                        msg!("account of space: {} created", space);
+                    }
+                }
+                // else set data program as the owner of the data_account
+                else {
+                    let assign_ix = system_instruction::assign(&data_account.key, &program_id);
+                    invoke(&assign_ix, &[data_account.clone(), system_program.clone()])?;
+
+                    if args.debug {
+                        msg!("account owner updated");
+                    }
                 }
                 data_account.data.borrow_mut().fill(0);
 
@@ -75,7 +90,7 @@ impl Processor {
                 // create pda account
                 let rent_exemption_amount = Rent::get()?.minimum_balance(METADATA_SIZE);
                 let create_pda_ix = system_instruction::create_account(
-                    &authority.key,
+                    &feepayer.key,
                     &metadata_account.key,
                     rent_exemption_amount,
                     METADATA_SIZE as u64,
@@ -84,13 +99,18 @@ impl Processor {
                 invoke_signed(
                     &create_pda_ix,
                     &[
-                        authority.clone(),
+                        feepayer.clone(),
                         data_account.clone(),
                         metadata_account.clone(),
                         system_program.clone(),
                     ],
                     &[&[PDA_SEED, data_account.key.as_ref(), &[bump_seed]]],
                 )?;
+
+                if args.debug {
+                    msg!("metadata pda created");
+                }
+
                 // create initial state for data_account metadata and write to it
                 let account_metadata = DataAccountMetadata::new(
                     DataStatusOption::INITIALIZED,
@@ -106,7 +126,9 @@ impl Processor {
                 Ok(())
             }
             DataAccountInstruction::UpdateDataAccount(args) => {
-                msg!("UpdateDataAccount");
+                if args.debug {
+                    msg!("UpdateDataAccount");
+                }
 
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
@@ -114,8 +136,8 @@ impl Processor {
                 let metadata_account = next_account_info(accounts_iter)?;
                 let system_program = next_account_info(accounts_iter)?;
 
-                // ensure authority and data_account are signer
-                if !authority.is_signer || !data_account.is_signer {
+                // ensure authority is signer
+                if !authority.is_signer {
                     return Err(DataAccountError::NotSigner.into());
                 }
 
@@ -166,6 +188,10 @@ impl Processor {
                     return Err(DataAccountError::InsufficientSpace.into());
                 }
 
+                if args.debug {
+                    msg!("account checks passed");
+                }
+
                 let new_len = if !account_metadata.dynamic() {
                     old_len
                 } else if args.realloc_down {
@@ -211,16 +237,91 @@ impl Processor {
                     }
 
                     data_account.realloc(new_space, false)?;
+
+                    if args.debug {
+                        msg!("realloc-ed {}", new_space);
+                    }
                 }
 
                 // update the data_account
+                if args.debug {
+                    msg!(
+                        "replaced {:?} with {:?}",
+                        &args.data,
+                        &data_account.data.borrow()[args.offset as usize..end_len]
+                    );
+                }
+
                 data_account.data.borrow_mut()[args.offset as usize..end_len]
                     .copy_from_slice(&args.data);
 
                 Ok(())
             }
-            DataAccountInstruction::CloseDataAccount(_args) => {
-                msg!("CloseDataAccount");
+            DataAccountInstruction::UpdateDataAccountAuthority(args) => {
+                if args.debug {
+                    msg!("UpdateDataAccountAuthority");
+                }
+
+                let accounts_iter = &mut accounts.iter();
+                let authority = next_account_info(accounts_iter)?;
+                let data_account = next_account_info(accounts_iter)?;
+                let metadata_account = next_account_info(accounts_iter)?;
+                let new_authority = next_account_info(accounts_iter)?;
+
+                // ensure authority and new_authority are signer
+                if !authority.is_signer || !new_authority.is_signer {
+                    return Err(DataAccountError::NotSigner.into());
+                }
+
+                // ensure metadata_account is writable
+                if !metadata_account.is_writable {
+                    return Err(DataAccountError::NotWriteable.into());
+                }
+
+                // ensure length is not 0
+                if metadata_account.data_is_empty() {
+                    return Err(DataAccountError::NoAccountLength.into());
+                }
+
+                let mut account_metadata =
+                    DataAccountMetadata::try_from_slice(&metadata_account.try_borrow_data()?)?;
+
+                // ensure data_account is initialized
+                if *account_metadata.data_status() == DataStatusOption::UNINITIALIZED {
+                    return Err(DataAccountError::NotInitialized.into());
+                }
+
+                // ensure data_account is being written to by valid authority
+                if account_metadata.authority() != authority.key {
+                    return Err(DataAccountError::InvalidAuthority.into());
+                }
+
+                // ensure the metadata_account corresponds to the data_account
+                let pda = Pubkey::create_program_address(
+                    &[
+                        PDA_SEED,
+                        data_account.key.as_ref(),
+                        &[account_metadata.bump_seed()],
+                    ],
+                    program_id,
+                )?;
+                if pda != *metadata_account.key {
+                    return Err(DataAccountError::InvalidPDA.into());
+                }
+
+                if args.debug {
+                    msg!("account checks passed")
+                }
+
+                // update the authority
+                account_metadata.set_authority(*new_authority.key);
+
+                Ok(())
+            }
+            DataAccountInstruction::CloseDataAccount(args) => {
+                if args.debug {
+                    msg!("CloseDataAccount");
+                }
 
                 let accounts_iter = &mut accounts.iter();
                 let authority = next_account_info(accounts_iter)?;
@@ -279,6 +380,10 @@ impl Processor {
                 **metadata_account.lamports.borrow_mut() = 0;
                 metadata_account.data.borrow_mut().fill(0);
 
+                if args.debug {
+                    msg!("{} transfered to authority for metadata pda", curr_lamports);
+                }
+
                 // transfer data_account lamports back to authority and reset data_account
                 let curr_lamports = authority.lamports();
                 **authority.lamports.borrow_mut() = curr_lamports
@@ -286,6 +391,10 @@ impl Processor {
                     .ok_or(DataAccountError::Overflow)?;
                 **data_account.lamports.borrow_mut() = 0;
                 data_account.data.borrow_mut().fill(0);
+
+                if args.debug {
+                    msg!("{} transfered to authority for data account", curr_lamports);
+                }
 
                 Ok(())
             }

@@ -12,6 +12,7 @@ pub enum DataTypeOption {
     CUSTOM = 0,
     JSON = 1,
     IMG = 2,
+    HTML = 3,
 }
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]
@@ -79,25 +80,29 @@ impl DataAccountMetadata {
             bump_seed,
         }
     }
-    /// Set the data_status
-    pub fn set_data_status(&mut self, data_status: DataStatusOption) {
-        self.data_status = data_status;
-    }
     /// Get the data_status
     pub fn data_status(&self) -> &DataStatusOption {
         &self.data_status
     }
-    /// Set the serialization_status
-    pub fn set_serialization_status(&mut self, serialization_status: SerializationStatusOption) {
-        self.serialization_status = serialization_status;
+    /// Set the data_status
+    pub fn set_data_status(&mut self, data_status: DataStatusOption) {
+        self.data_status = data_status;
     }
     /// Get the serialization_status
     pub fn serialization_status(&self) -> &SerializationStatusOption {
         &self.serialization_status
     }
+    /// Set the serialization_status
+    pub fn set_serialization_status(&mut self, serialization_status: SerializationStatusOption) {
+        self.serialization_status = serialization_status;
+    }
     /// Get the authority
     pub fn authority(&self) -> &Pubkey {
         &self.authority
+    }
+    /// Set the authority
+    pub fn set_authority(&mut self, authority: Pubkey) {
+        self.authority = authority;
     }
     /// Get the dynamic flag
     pub fn dynamic(&self) -> bool {
@@ -127,6 +132,7 @@ pub struct InitializeDataAccountArgs {
     pub space: u64,
     pub is_dynamic: bool,
     pub is_created: bool,
+    pub debug: bool,
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
@@ -137,7 +143,15 @@ pub struct UpdateDataAccountArgs {
     pub realloc_down: bool,
     pub commit_flag: bool,
     pub verify_flag: bool,
+    pub debug: bool,
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct CloseDataAccountArgs {}
+pub struct UpdateDataAccountAuthorityArgs {
+    pub debug: bool,
+}
+
+#[derive(Clone, BorshSerialize, BorshDeserialize)]
+pub struct CloseDataAccountArgs {
+    pub debug: bool,
+}
