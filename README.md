@@ -1,6 +1,6 @@
 # Solana Data Program V0
 
-Solana Data Program is a program that allows users to intialize a _data account_, read and modify its data, and optionally commit it.
+Solana Data Program is a program that allows users to initialize a _data account_, read and modify its data, and optionally commit it.
 
 ## Features
 
