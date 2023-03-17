@@ -157,9 +157,15 @@ impl Processor {
                 let mut account_metadata =
                     DataAccountMetadata::try_from_slice(&metadata_account.try_borrow_data()?)?;
 
-                // ensure data_account is initialized
-                if *account_metadata.data_status() == DataStatusOption::UNINITIALIZED {
-                    return Err(DataAccountError::NotInitialized.into());
+                // ensure data_account is initialized and not finalized
+                match *account_metadata.data_status() {
+                    DataStatusOption::UNINITIALIZED => {
+                        return Err(DataAccountError::NotInitialized.into());
+                    }
+                    DataStatusOption::FINALIZED => {
+                        return Err(DataAccountError::AlreadyFinalized.into());
+                    }
+                    _ => (),
                 }
 
                 // ensure data_account is being written to by valid authority
@@ -315,6 +321,77 @@ impl Processor {
 
                 // update the authority
                 account_metadata.set_authority(*new_authority.key);
+
+                Ok(())
+            }
+            DataAccountInstruction::FinalizeDataAccount(args) => {
+                if args.debug {
+                    msg!("FinalizeDataAccount");
+                }
+
+                let accounts_iter = &mut accounts.iter();
+                let authority = next_account_info(accounts_iter)?;
+                let data_account = next_account_info(accounts_iter)?;
+                let metadata_account = next_account_info(accounts_iter)?;
+
+                // ensure authority is signer
+                if !authority.is_signer {
+                    return Err(DataAccountError::NotSigner.into());
+                }
+
+                // ensure metadata_account is writable
+                if !metadata_account.is_writable {
+                    return Err(DataAccountError::NotWriteable.into());
+                }
+
+                // ensure length is not 0
+                if metadata_account.data_is_empty() {
+                    return Err(DataAccountError::NoAccountLength.into());
+                }
+
+                let mut account_metadata =
+                    DataAccountMetadata::try_from_slice(&metadata_account.try_borrow_data()?)?;
+
+                // ensure data_account is initialized and not finalized
+                match *account_metadata.data_status() {
+                    DataStatusOption::UNINITIALIZED => {
+                        return Err(DataAccountError::NotInitialized.into());
+                    }
+                    DataStatusOption::FINALIZED => {
+                        return Err(DataAccountError::AlreadyFinalized.into());
+                    }
+                    _ => (),
+                }
+
+                // ensure metadata_account is being written to by valid authority
+                if account_metadata.authority() != authority.key {
+                    return Err(DataAccountError::InvalidAuthority.into());
+                }
+
+                // ensure the metadata_account corresponds to the data_account
+                let pda = Pubkey::create_program_address(
+                    &[
+                        PDA_SEED,
+                        data_account.key.as_ref(),
+                        &[account_metadata.bump_seed()],
+                    ],
+                    program_id,
+                )?;
+                if pda != *metadata_account.key {
+                    return Err(DataAccountError::InvalidPDA.into());
+                }
+
+                if args.debug {
+                    msg!("account checks passed");
+                }
+
+                account_metadata.set_data_status(DataStatusOption::FINALIZED);
+                account_metadata.serialize(&mut &mut metadata_account.data.borrow_mut()[..])?;
+
+                // update the data_account
+                if args.debug {
+                    msg!("updated finalize flag");
+                }
 
                 Ok(())
             }

@@ -24,6 +24,8 @@ pub enum DataAccountError {
     AlreadyInitialized,
     #[error("Data account should be initialized")]
     NotInitialized,
+    #[error("Cannot update previously finalized data account")]
+    AlreadyFinalized,
     #[error("Operation overflowed")]
     Overflow,
     #[error("Data account should have sufficient space")]

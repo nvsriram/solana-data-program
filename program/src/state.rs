@@ -19,8 +19,7 @@ pub enum DataTypeOption {
 pub enum DataStatusOption {
     UNINITIALIZED,
     INITIALIZED,
-    UPDATED,
-    COMMITTED,
+    FINALIZED,
 }
 
 #[derive(PartialEq, Debug, Clone, BorshDeserialize, BorshSerialize)]
@@ -141,13 +140,17 @@ pub struct UpdateDataAccountArgs {
     pub data: Vec<u8>,
     pub offset: u64,
     pub realloc_down: bool,
-    pub commit_flag: bool,
     pub verify_flag: bool,
     pub debug: bool,
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub struct UpdateDataAccountAuthorityArgs {
+    pub debug: bool,
+}
+
+#[derive(Clone, BorshSerialize, BorshDeserialize)]
+pub struct FinalizeDataAccountArgs {
     pub debug: bool,
 }
 
