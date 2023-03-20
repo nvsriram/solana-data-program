@@ -9,8 +9,8 @@ Solana Data Program is a program that allows users to initialize a _data account
 - Optionally allows _data account_ to be dynamic i.e., [`realloc`](https://docs.rs/solana-sdk/latest/solana_sdk/account_info/struct.AccountInfo.html#method.realloc)'s the _data account_ on every [update](#instruction-overview) instruction to ensure no additional storage is wasted
 - Allows the `authority` to update the data starting at a particular offset
 - Allows the `authority` to verify that the `data` is of the same data type as expected by the `data_type` field by passing in a `verify_flag: bool`
-- Allows the `authority` to finalize the data in the _data account_ - finalized data can no longer be updated
 - Allows the `authority` to update the `authority` field but requires the new authority to also be a signer so that there is no accidental authority transfer
+- Allows the `authority` to finalize the data in the _data account_ - finalized data can no longer be updated
 - Allows the `authority` to close both the _data account_ and _metadata account_ to reclaim SOL
 
 ## Instruction Overview
