@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "@metaplex-foundation/js": "^0.18.3",
+    "@types/bn.js": "^5.1.1",
+    "bn.js": "^5.2.1",
     "dotenv": "^16.0.3"
   }
 }

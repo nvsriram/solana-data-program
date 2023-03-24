@@ -60,18 +60,20 @@ pub const COLORS: &'static [&'static str] = &[
     "000000",
 ];
 
-pub const METADATA_UPDATE_OFFSET: u64 = 302;
-pub const METADATA_END_OFFSET: u64 = 170;
-pub const COLOR_UPDATE_OFFSET: u64 = 3624;
+#[derive(Clone, BorshSerialize, BorshDeserialize)]
+pub struct UpdateQuineMetadataArgs {
+    pub metadata_update_offset: u64,
+}
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct UpdateQuineMetadataArgs {}
+pub struct AppendQuineMetadataArgs {
+    pub metadata_end_offset: u64,
+}
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct AppendQuineMetadataArgs {}
-
-#[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct UpdateQuineColorArgs {}
+pub struct UpdateQuineColorArgs {
+    pub color_update_offset: u64,
+}
 
 /// Data Program constants and types
 pub const DATA_VERSION: u8 = 0;

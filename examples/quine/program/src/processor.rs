@@ -1,10 +1,7 @@
 use crate::{
     error::QuineError,
     instruction::{DataAccountInstruction, QuineInstruction},
-    state::{
-        DataTypeOption, UpdateDataAccountArgs, COLORS, COLOR_UPDATE_OFFSET, METADATA_END_OFFSET,
-        METADATA_SIZE, METADATA_UPDATE_OFFSET,
-    },
+    state::{DataTypeOption, UpdateDataAccountArgs, COLORS, METADATA_SIZE},
 };
 use borsh::BorshDeserialize;
 use solana_program::instruction::{AccountMeta, Instruction};
@@ -31,7 +28,7 @@ impl Processor {
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
         match instruction {
-            QuineInstruction::UpdateQuineMetadata(_args) => {
+            QuineInstruction::UpdateQuineMetadata(args) => {
                 msg!("UpdateQuineMetadata");
 
                 let accounts_iter = &mut accounts.iter();
@@ -60,7 +57,7 @@ impl Processor {
                 let update_args = UpdateDataAccountArgs {
                     data_type: DataTypeOption::JSON,
                     data: "si".as_bytes().to_vec(),
-                    offset: METADATA_UPDATE_OFFSET,
+                    offset: args.metadata_update_offset,
                     realloc_down: false,
                     verify_flag: false,
                     debug: true,
@@ -85,7 +82,7 @@ impl Processor {
                 )?;
                 Ok(())
             }
-            QuineInstruction::AppendQuineMetadata(_args) => {
+            QuineInstruction::AppendQuineMetadata(args) => {
                 msg!("AppendQuineMetadata");
 
                 let accounts_iter = &mut accounts.iter();
@@ -111,7 +108,7 @@ impl Processor {
                 }
 
                 // append new attribute
-                let offset = data_account.data_len() - METADATA_END_OFFSET as usize;
+                let offset = data_account.data_len() - args.metadata_end_offset as usize;
                 let mut data = ",{\"trait_type\":\"Newly added trait\",\"value\":\"heck yeah!\"}"
                     .as_bytes()
                     .to_vec();
@@ -145,7 +142,7 @@ impl Processor {
                 )?;
                 Ok(())
             }
-            QuineInstruction::UpdateQuineColor(_args) => {
+            QuineInstruction::UpdateQuineColor(args) => {
                 msg!("UpdateQuineColor");
 
                 let accounts_iter = &mut accounts.iter();
@@ -180,7 +177,7 @@ impl Processor {
                 let update_args = UpdateDataAccountArgs {
                     data_type: DataTypeOption::HTML,
                     data: COLORS[idx].as_bytes().to_vec(),
-                    offset: COLOR_UPDATE_OFFSET,
+                    offset: args.color_update_offset,
                     realloc_down: false,
                     verify_flag: false,
                     debug: true,

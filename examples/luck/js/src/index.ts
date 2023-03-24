@@ -16,9 +16,11 @@ import { PDA_SEED } from "../../../../js/src/common/utils";
 dotenv.config();
 
 const main = async () => {
-  // Public Key of NFT Quine Sphere and NFT Metadata
-  const luckImage = "3vc5iMbuXrxzivQz6AqsmEgM1QqeKFhBCFGEMn4CQcx3";
-  const luckMetadata = "BHiUd2McBRS1ycCghehbNnsUQMfyk6cWeoGPyNGmngRH";
+  const shouldMint = process.argv.indexOf("--mint") > -1;
+
+  // Public Key of NFT Lucky Number and NFT Metadata
+  const luckImage = "Do8NDpNM7g6Kgg7JtvYBkj7wbh9sRmrFQt4AYyDyj4eN";
+  const luckMetadata = "8iy6498fkpDVJ7MYRzDabX3i5k5qjtyeWY6jaqWrXkJH";
 
   const cluster = process.env.CLUSTER as string;
 
@@ -27,25 +29,27 @@ const main = async () => {
     bs58.decode(process.env.AUTHORITY_PRIVATE as string)
   );
 
-  // mint Quine Sphere NFT with metadata
-  const base = process.env.BASE_URL as string;
-  const api = process.env.DATA_ROUTE as string;
-  const metaplex = Metaplex.make(connection).use(keypairIdentity(wallet));
-  metaplex
-    .nfts()
-    .create(
-      {
-        uri: `${base}${api}${luckMetadata}?cluster=${cluster}`,
-        name: "Solana Lucky Number",
-        sellerFeeBasisPoints: 0,
-      },
-      {
-        commitment: "confirmed",
-      }
-    )
-    .then(({ nft }) => {
-      console.log(nft);
-    });
+  // mint Lucky Number NFT with metadata
+  if (shouldMint) {
+    const base = process.env.BASE_URL as string;
+    const api = process.env.DATA_ROUTE as string;
+    const metaplex = Metaplex.make(connection).use(keypairIdentity(wallet));
+    metaplex
+      .nfts()
+      .create(
+        {
+          uri: `${base}${api}${luckMetadata}?cluster=${cluster}`,
+          name: "Solana Lucky Number",
+          sellerFeeBasisPoints: 0,
+        },
+        {
+          commitment: "confirmed",
+        }
+      )
+      .then(({ nft }) => {
+        console.log(nft);
+      });
+  }
 
   const dataProgramId = new PublicKey(process.env.DATA_PROGRAM_ID as string);
   const luckProgramId = new PublicKey(process.env.LUCK_PROGRAM_ID as string);
@@ -90,7 +94,6 @@ const main = async () => {
     data: Buffer.concat([Buffer.from(new Uint8Array([0]))]),
   });
 
-  // update, append metadata + update color
   const tx = new Transaction();
   tx.add(testLuckIx);
 

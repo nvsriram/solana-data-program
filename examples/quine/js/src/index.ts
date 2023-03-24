@@ -11,14 +11,15 @@ import {
 } from "@solana/web3.js";
 import * as bs58 from "bs58";
 import * as dotenv from "dotenv";
+import BN from "bn.js";
 import { PDA_SEED } from "../../../../js/src/common/utils";
 
 dotenv.config();
 
 const main = async () => {
   // Public Key of NFT Quine Sphere and NFT Metadata
-  const quineSphere = "GaShKxcnu6EDxBbFRDk6Eoq6vLM9WBVVfpcipcs2TTvX";
-  const quineMetadata = "zG6N1e1qP5vUbpRcPBj5oX1yJ3VhH7B2N8q3RrGMXqb";
+  const quineSphere = "HoyEJgwKhQG1TPRB2ziBU9uGziwy4f25kDcnKDNgsCkg";
+  const quineMetadata = "2YHSuwuH7PqKLcKKqVAUjTGYYsGwaGYTGbsgZYBtYrsw";
 
   const cluster = process.env.CLUSTER as string;
 
@@ -64,6 +65,7 @@ const main = async () => {
     [Buffer.from(PDA_SEED, "ascii"), metadataAccount.toBuffer()],
     dataProgramId
   );
+  const metadataUpdateOffset = new BN(322).toArrayLike(Buffer, "le", 8);
   const updateQuineMetadataIx = new TransactionInstruction({
     keys: [
       {
@@ -93,9 +95,13 @@ const main = async () => {
       },
     ],
     programId: quineProgramId,
-    data: Buffer.concat([Buffer.from(new Uint8Array([0]))]),
+    data: Buffer.concat([
+      Buffer.from(new Uint8Array([0])),
+      metadataUpdateOffset,
+    ]),
   });
 
+  const metadataEndOffset = new BN(180).toArrayLike(Buffer, "le", 8);
   const appendQuineMetadataIx = new TransactionInstruction({
     keys: [
       {
@@ -125,9 +131,10 @@ const main = async () => {
       },
     ],
     programId: quineProgramId,
-    data: Buffer.concat([Buffer.from(new Uint8Array([1]))]),
+    data: Buffer.concat([Buffer.from(new Uint8Array([1])), metadataEndOffset]),
   });
 
+  const colorUpdateOffset = new BN(3624).toArrayLike(Buffer, "le", 8);
   const updateQuineColorIx = new TransactionInstruction({
     keys: [
       {
@@ -157,7 +164,7 @@ const main = async () => {
       },
     ],
     programId: quineProgramId,
-    data: Buffer.concat([Buffer.from(new Uint8Array([2]))]),
+    data: Buffer.concat([Buffer.from(new Uint8Array([2])), colorUpdateOffset]),
   });
 
   // update, append metadata + update color
