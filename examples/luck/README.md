@@ -12,7 +12,7 @@ An NFT that displays a number that can be changed via an on-chain program that e
 2. Compile the Rust program using: `cargo-build-sbf`
 3. Deploy the Rust program using: `solana program deploy target/deploy/luckprogram.so`. <br />
 <b>Note down the program ID of the deployed program</b>
-4. Navigate the `js` directory
+4. Navigate the `js` directory and install all dependencies using `npm install`
 5. Upload the `luck.html` file on a Data Account using [SolD](https://sold-website.vercel.app/upload) <b>*</b>
 6. Make sure the authority is set to a wallet you own as you will require its private key later on
 7. In the `meta.json` file, replace the two occurrences of `<REPLACE WITH LUCK.HTML DATA ACCOUNT PUBKEY>` with the `PublicKey` of the HTML Data Account
@@ -28,8 +28,8 @@ AUTHORITY_PRIVATE=<REPLACE WITH PRIVATE KEY OF AUTHORITY WALLET>
 BASE_URL=https://sold-website.vercel.app
 DATA_ROUTE=/api/data/
 ```
-11. Run `npx ts-node index.ts --mint` when running for the first time to mint the NFT and run the on-chain program to update it
-12. After the NFT is minted, you can run `npx ts-node index.ts` to just run the on-chain program and test your luck!
+11. when running for the first time, run `npx ts-node src/index.ts --mint`  to mint the NFT and run the on-chain program to update it
+12. After the NFT is minted, you can run `npx ts-node src/index.ts` (without the --mint flag) to just run the on-chain program and test your luck!
 13. You can view the minted NFT to see that the number change
 
 You now have a dynamic NFT that is stored fully on-chain that can be modified via an on-chain program! ;)
