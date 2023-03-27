@@ -48,14 +48,12 @@ impl Processor {
                 let hex_num: u64 = ((hex_seed as f64).sin() * 16777215.).abs().floor() as u64;
                 let hex_str = format!("#{:x}", hex_num);
                 let env = &env_account.try_borrow_data()?[..];
-                // let env_str = re.replace(std::str::from_utf8(env).unwrap(), &hex_str);
                 let env_str = str::replace(std::str::from_utf8(env).unwrap(), "#01", &hex_str);
 
                 let hex_seed = u128::from_le_bytes(seed[16..].try_into().unwrap());
                 let hex_num: u64 = ((hex_seed as f64).sin() * 16777215.).abs().floor() as u64;
                 let hex_str = format!("#{:x}", hex_num);
                 let head = &head_account.try_borrow_data()?[..];
-                // let head_str = re.replace(std::str::from_utf8(head).unwrap(), &hex_str);
                 let head_str = str::replace(std::str::from_utf8(head).unwrap(), "#000", &hex_str);
 
                 let mut data = SVGSTART.to_vec();
