@@ -11,6 +11,7 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 import * as bs58 from "bs58";
+import { writeFileSync } from "fs";
 import * as dotenv from "dotenv";
 import { PDA_SEED } from "../../../../js/src/common/utils";
 import { DataTypeOption } from "../../../../js/src/common/types";
@@ -352,8 +353,20 @@ const generateSVGParts = () => {
       parts[j].add(sP[i][j]);
     }
   }
+  const og: any = {};
+  Object.entries(parts).map(([key, val]) => {
+    if (val instanceof Set) {
+      og[key] = Array.from(val);
+    }
+  });
 
-  console.log(parts);
+  try {
+    writeFileSync("src/og-svgs.txt", JSON.stringify(og, null, 2), {
+      flag: "w",
+    });
+  } catch (err) {
+    console.error(err);
+  }
 };
 
 const uploadSVGParts = async () => {
@@ -491,9 +504,23 @@ const uploadSVGParts = async () => {
     }
     console.log(key, accounts[key]);
   }
+
+  try {
+    writeFileSync("src/svgs-pubkeys.txt", JSON.stringify(accounts, null, 2), {
+      flag: "w",
+    });
+  } catch (err) {
+    console.error(err);
+  }
 };
 
 const main = async () => {
+  const shouldGenerate = process.argv.indexOf("--generate") > -1;
+  if (shouldGenerate) {
+    generateSVGParts();
+    return;
+  }
+
   const shouldUploadParts = process.argv.indexOf("--upload") > -1;
   if (shouldUploadParts) {
     await uploadSVGParts();
