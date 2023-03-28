@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <body>
+    <iframe id="frame"></iframe>
+  </body>
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+  <script>
+    const frame = document.querySelector("#frame");
+    const BASE_URL = "http://localhost:3000/api/data/";
+    const imgs = [
+      "DyVaJEfWV7XVnXbZtBWzdEGQrpg6EqVygDKNZ6YPSNw",
+      "4dGMambbDpWaSLqayyM9J3gyAAbDGGJBqQHxfCPUXvQc",
+      "FCgQt8CfxctQPqzRprirwHADCgtBCu4HxShQNaDNx3vg",
+      "6pZc2Q7ELNXH2hcXBbjPciTnhFC3YMEpaV98HkDDzi7C",
+      "3SsBFLVZxyaKbD64fFuqM5e21L4jExwkcLnB9GUaQtEu",
+    ];
+    const connection = new solanaWeb3.Connection(
+      "https://api.devnet.solana.com"
+    );
+    connection
+      .getAccountInfo(
+        new solanaWeb3.PublicKey(
+          "E3tmHCiDaj4PD55ULrPzsDEcirhwYwios8RXLREGzZS6"
+        ),
+        "confirmed"
+      )
+      .then((account) => {
+        const amt = account.lamports / 1e9;
+        let idx = 0;
+        if (amt > 15) {
+          idx = 4;
+        } else if (amt > 10) {
+          idx = 3;
+        } else if (amt > 8) {
+          idx = 2;
+        } else if (amt > 5) {
+          idx = 1;
+        }
+        frame.src = BASE_URL + imgs[idx] + "?cluster=Devnet";
+        frame.width = frame.contentWindow.document.body.scrollWidth;
+        frame.height = frame.contentWindow.document.body.scrollHeight;
+      });
+  </script>
+</html>
