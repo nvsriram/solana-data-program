@@ -12,7 +12,7 @@ import {
 import * as bs58 from "bs58";
 import * as dotenv from "dotenv";
 import BN from "bn.js";
-import { PDA_SEED } from "../../../../js/src/common/utils";
+import { PDA_SEED } from "../../../../js/src/util/utils";
 
 dotenv.config();
 

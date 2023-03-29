@@ -321,6 +321,11 @@ impl Processor {
 
                 // update the authority
                 account_metadata.set_authority(*new_authority.key);
+                account_metadata.serialize(&mut &mut metadata_account.data.borrow_mut()[..])?;
+
+                if args.debug {
+                    msg!("updated authority");
+                }
 
                 Ok(())
             }
@@ -385,10 +390,10 @@ impl Processor {
                     msg!("account checks passed");
                 }
 
+                // update the data_account
                 account_metadata.set_data_status(DataStatusOption::FINALIZED);
                 account_metadata.serialize(&mut &mut metadata_account.data.borrow_mut()[..])?;
 
-                // update the data_account
                 if args.debug {
                     msg!("updated finalize flag");
                 }
@@ -419,7 +424,7 @@ impl Processor {
                 }
 
                 // ensure length is not 0
-                if data_account.data_is_empty() || metadata_account.data_is_empty() {
+                if metadata_account.data_is_empty() {
                     return Err(DataAccountError::NoAccountLength.into());
                 }
 

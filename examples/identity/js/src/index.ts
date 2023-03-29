@@ -13,8 +13,8 @@ import BN from "bn.js";
 import * as bs58 from "bs58";
 import { writeFileSync } from "fs";
 import * as dotenv from "dotenv";
-import { PDA_SEED } from "../../../../js/src/common/utils";
-import { DataTypeOption } from "../../../../js/src/common/types";
+import { PDA_SEED } from "../../../../js/src/util/utils";
+import { DataTypeOption } from "../../../../js/src/util/types";
 import { svgs } from "./svgs";
 import { svgPKs } from "./svg-pubkeys";
 
