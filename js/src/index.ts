@@ -30,6 +30,7 @@ const main = async () => {
 
   // Command line argument checks
   const debug = process.argv.indexOf("--debug") > -1;
+  const dynamic = process.argv.indexOf("--dynamic") > -1;
   const dataAccountIdx = process.argv.indexOf("--account");
   let dataPK: PublicKey | undefined;
   if (dataAccountIdx != -1) {
@@ -71,7 +72,7 @@ const main = async () => {
     }
     const dataType = getDataTypeFromMimeType(lookup(filepath));
     const data = readFileSync(filepath);
-    await uploadData(connection, wallet, data, dataType, dataPK);
+    await uploadData(connection, wallet, data, dataType, dynamic, dataPK);
     return;
   }
 };

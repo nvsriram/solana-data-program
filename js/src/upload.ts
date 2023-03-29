@@ -16,6 +16,7 @@ const main = async (
   feePayer: Keypair,
   data: Buffer,
   dataType: DataTypeOption,
+  isDynamic: boolean,
   dataPK?: PublicKey
 ) => {
   let dataAccount = dataPK;
@@ -43,7 +44,7 @@ const main = async (
       newAccount.publicKey,
       feePayer.publicKey,
       true,
-      false,
+      isDynamic,
       data.length
     );
     const initializeTx = new Transaction();
