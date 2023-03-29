@@ -27,8 +27,7 @@ Solana Data Program is a program that allows users to initialize a _data account
 2. Create a `.env` file and add the following to it:
  ```
 CONNECTION_URL=https://api.devnet.solana.com # if deployed on devnet
-CLUSTER=devnet # if deployed on devnet
-DATA_PROGRAM_ID=ECQd7f4sYhcWX5G9DQ7Hgcf3URZTfgwVwjKzH2sMQeFW # if deployed on devnet
+PROGRAM_ID=ECQd7f4sYhcWX5G9DQ7Hgcf3URZTfgwVwjKzH2sMQeFW # if deployed on devnet
 AUTHORITY_PRIVATE=<REPLACE WITH PRIVATE KEY OF AUTHORITY WALLET>
 ```
 3. To view details about a Data Account, run:
@@ -46,6 +45,17 @@ AUTHORITY_PRIVATE=<REPLACE WITH PRIVATE KEY OF AUTHORITY WALLET>
   - If you already have an existing Data Account, you can upload to it by including the `--account <REPLACE WITH DATA ACCOUNT PUBKEY>` flag
   - If you want the Data Account to be dynamic, include the `--dynamic` flag
 
+## Testing Instructions
+
+1. Navigate to the `js` directory and install all dependencies using `npm install`
+2. Create a `.env` file and add the following to it:
+ ```
+CONNECTION_URL=https://api.devnet.solana.com # if deployed on devnet
+PROGRAM_ID=ECQd7f4sYhcWX5G9DQ7Hgcf3URZTfgwVwjKzH2sMQeFW # if deployed on devnet
+TEST_PRIMARY_PRIVATE=<REPLACE WITH PRIVATE KEY OF PRIMARY TEST AUTHORITY WALLET>
+TEST_SECONDARY_PRIVATE=<REPLACE WITH PRIVATE KEY OF SECONDARY TEST AUTHORITY WALLET>
+```
+3. Run `npm run test` to run all the test cases
 
 ## Examples
 
