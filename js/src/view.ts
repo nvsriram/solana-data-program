@@ -1,7 +1,4 @@
-import {
-  Connection,
-  PublicKey,
-} from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { DataProgram } from "../src/util/utils";
 import { DataTypeOption } from "./util/types";
 
