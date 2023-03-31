@@ -4,9 +4,9 @@ Solana Data Program is a program that allows users to initialize a _data account
 
 ##  ✨ Key Features
 
-- Allows System owned accounts to create (if not done already) and initialize a _data account_ and _metadata account_ that is linked to the `authority` (but owned by the Data Program) to store data of any format (JSON, PNG, Custom etc.)
+- Allows System owned accounts to create (if not done already) and initialize a _data account_ and _metadata account_ that is linked to the `authority` (but owned by the Data Program) to store data of any format (JSON, IMG, HTML, Custom, etc.)
 - Allows the `authority` of the _data account_ to modify the `data_type` and/or `data`
-- Optionally allows _data account_ to be dynamic i.e., [`realloc`](https://docs.rs/solana-sdk/latest/solana_sdk/account_info/struct.AccountInfo.html#method.realloc)'s the _data account_ on every [update](#instruction-overview) instruction to ensure no additional storage is wasted
+- Optionally allows _data account_ to be dynamic i.e., [`realloc`](https://docs.rs/solana-sdk/latest/solana_sdk/account_info/struct.AccountInfo.html#method.realloc)'s the _data account_ on every update instruction to ensure no additional storage is wasted
 - Allows the `authority` to update the data starting at a particular offset
 - Allows the `authority` to verify that the `data` is of the same data type as expected by the `data_type` field by passing in a `verify_flag: bool`
 - Allows the `authority` to update the `authority` field but requires the new authority to also be a signer so that there is no accidental authority transfer
