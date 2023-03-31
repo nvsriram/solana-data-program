@@ -2,7 +2,7 @@
 
 Solana Data Program is a program that allows users to initialize a _data account_, read and modify its data, and optionally finalize it.
 
-## Features
+##  ✨ Key Features
 
 - Allows System owned accounts to create (if not done already) and initialize a _data account_ and _metadata account_ that is linked to the `authority` (but owned by the Data Program) to store data of any format (JSON, PNG, Custom etc.)
 - Allows the `authority` of the _data account_ to modify the `data_type` and/or `data`
@@ -13,7 +13,7 @@ Solana Data Program is a program that allows users to initialize a _data account
 - Allows the `authority` to finalize the data in the _data account_ - finalized data can no longer be updated
 - Allows the `authority` to close both the _data account_ and _metadata account_ to reclaim SOL
 
-## Instruction Overview
+## 📝 Instruction Overview
 
 0. **InitializeDataAccount (`initialize`):** creates (if not done already) and initializes a _data account_ that is linked to the `authority`. It also creates and initializes a _metadata account_ that is a pda derived off of the _data account_ to store the metadata
 1. **UpdateDataAccount (`update`):** lets the `authority` modify the `data_type` and the `data` starting at a particular `offset`. If the _data account_ is set to be dynamic, it down/up reallocs as necessary. Also lets the `authority` optionally verify that the `data` conforms to the `data_type`
@@ -21,7 +21,7 @@ Solana Data Program is a program that allows users to initialize a _data account
 3. **FinalizeDataAccount (`finalize`):** lets the `authority` finalize the data and metadata corresponding to the _data account_. Once finalized, the data cannot be updated. However, the `authority` can still be updated and the _data account_ can still be closed 
 3. **CloseDataAccount (`close`):** lets the `authority` close the _data account_ and the _metadata account_ and reclaim the lamports
 
-## Getting Started
+## 🧑‍💻 Getting Started
 
 1. Navigate to the `js` directory and install all dependencies using `npm install`
 2. Create a `.env` file and add the following to it:
@@ -45,7 +45,7 @@ AUTHORITY_PRIVATE=<REPLACE WITH PRIVATE KEY OF AUTHORITY WALLET>
   - If you already have an existing Data Account, you can upload to it by including the `--account <REPLACE WITH DATA ACCOUNT PUBKEY>` flag
   - If you want the Data Account to be dynamic, include the `--dynamic` flag
 
-## Testing Instructions
+## 🛠️ Testing Instructions
 
 1. Navigate to the `js` directory and install all dependencies using `npm install`
 2. Create a `.env` file and add the following to it:
@@ -57,7 +57,10 @@ TEST_SECONDARY_PRIVATE=<REPLACE WITH PRIVATE KEY OF SECONDARY TEST AUTHORITY WAL
 ```
 3. Run `npm run test` to run all the test cases
 
-## Examples
+## 📈 Flow Diagram
+![flow-diagram](./static/FlowDiagram.png)
+
+## 🚀 Examples
 
 * The `examples` directory contains example projects that build on top of the Data Program to showcase stuff that can be built using it
 * Follow in the instructions in the `examples` README to try them out for yourself! ;)
