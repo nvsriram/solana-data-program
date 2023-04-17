@@ -13,13 +13,165 @@ Solana Data Program is a program that allows users to initialize a _data account
 - Allows the `authority` to finalize the data in the _data account_ - finalized data can no longer be updated
 - Allows the `authority` to close both the _data account_ and _metadata account_ to reclaim SOL
 
-## 📝 Instruction Overview
+## Account Overview
 
-0. **InitializeDataAccount (`initialize`):** creates (if not done already) and initializes a _data account_ that is linked to the `authority`. It also creates and initializes a _metadata account_ that is a pda derived off of the _data account_ to store the metadata
-1. **UpdateDataAccount (`update`):** lets the `authority` modify the `data_type` and the `data` starting at a particular `offset`. If the _data account_ is set to be dynamic, it down/up reallocs as necessary. Also lets the `authority` optionally verify that the `data` conforms to the `data_type`
-2. **UpdateDataAccountAuthority (`update-authority`):** lets the `authority` transfer its "authority" to a new account. It requires both the old and new authority to be signers to prevent accidental transfers
-3. **FinalizeDataAccount (`finalize`):** lets the `authority` finalize the data and metadata corresponding to the _data account_. Once finalized, the data cannot be updated. However, the `authority` can still be updated and the _data account_ can still be closed 
-3. **CloseDataAccount (`close`):** lets the `authority` close the _data account_ and the _metadata account_ and reclaim the lamports
+### 📄 Metadata PDA Account
+
+The Metadata PDA Account stores information about the `data account`.  It is created and initialized by `InitializeDataAccount` and is updated by all other instructions.
+
+| Field                              | Offset | Size | Description
+| ---------------------------------- | ------ | ---- | --
+| `data_status`                      | 0      | 1    | Status of the data. Initially set to `INITIALIZED`. `FinalizeDataAccount` sets this to `FINALIZED`.
+| `serialization_status`             | 1      | 1    | Status of the data serialization. Initially set to `UNVERIFIED`. `UpdateDataAccount` with a set `verify_flag` updates this.
+| `authority`                        | 2      | 32   | `PubKey` of the authority of the data account.
+| `is_dynamic`                       | 34     | 1    | `bool` to determine if the data account is dynamic (can realloc) or static. Set initially via `InitializeDataAccount`.
+| `data_version`                     | 35     | 1    | `u8` to keep track of the version of the Data Program used.
+| `data_type`                        | 36     | 1    | `u8` to store the Data Type of the data.
+| `bump_seed`                        | 37     | 1    | `u8` to store the bump seed.
+
+### 📄 Data Account
+
+The Data Account stores the data as a raw data byte array.
+
+| Field                             | Offset | Size | Description
+| --------------------------------- | ------ | ---- | --
+| `data`                            | 0      | ~    | The data to be stored in the account.
+
+## Instruction Overview
+
+### 📄 `InitializeDataAccount`
+
+This instruction creates and initializes the Metadata Account and optionally creates a Data Account.
+
+
+<details>
+  <summary>Accounts</summary>
+
+| Name                              | Writable | Signer | Description
+| --------------------------------- | :------: | :----: | --
+| `feepayer`                        |    ✅    |   ✅   | Payer of the transaction.
+| `data`                            |    ✅    |   ✅   | The account that will contain the data. Can be created prior to this instruction.
+| `pda`                             |    ✅    |        | The PDA account that will be created and initialized by this instruction to hold the metadata.
+| `system_program`                  |          |        | The Solana System Program ID.
+
+</details>
+
+<details>
+  <summary>Arguments</summary>
+
+| Argument                          | Offset | Size | Description
+| --------------------------------- | ------ | ---- | --
+| `authority`                       | 0      | 32   | The `PubKey` of the data account authority.
+| `space`                           | 32     | 64   | The initial space taken by the data account. If the data account is created prior to this instruction, this value will be ignored.
+| `is_dynamic`                      | 96     | 1    | The flag that sets the data account to be dynamic or static. A dynamic data account can realloc up or down.
+| `is_created`                      | 97     | 1    | The flag that determines whether the data account would need to be created in this instruction.
+| `debug`                           | 98     | 1    | The flag that determines whether the instruction should output debug logs.
+
+</details>
+
+### 📄 `UpdateDataAccount`
+
+This instruction updates the `data_type` field in the Metadata PDA Account and the data in the Data Account.
+
+<details>
+  <summary>Accounts</summary>
+
+| Name                              | Writable | Signer | Description
+| --------------------------------- | :------: | :----: | --
+| `authority`                       |    ✅    |   ✅   | The Authority of the Data Account.
+| `data`                            |    ✅    |        | The account that contains the data.
+| `pda`                             |    ✅    |        | The PDA account that contains the metadata.
+| `system_program`                  |          |        | The Solana System Program ID.
+
+</details>
+
+<details>
+  <summary>Arguments</summary>
+
+| Argument                          | Offset | Size | Description
+| --------------------------------- | ------ | ---- | --
+| `data_type`                       | 0      | 1    | The data type of the `data`.
+| `data`                            | 1      | ~    | The new data (stored as `Vec<u8>`) to be written. **Note:** since the `data` field is an array of variable length, the byte position of any field that follows cannot be guaranteed.
+| `offset`                          | ~      | 64   | The offset from where to start writing the new data.
+| `realloc_down`                    | ~      | 1    | The flag that determines whether the data account should realloc down if the writing of the new data leads to unused space. This value is ignored if the data account is static.
+| `verify_flag`                     | ~      | 1    | The flag that determines whether the data should be verified that it conforms to its `data_type`. If the data type can be verified, the `serialization_status` will be set to `VERIFIED` or `FAILED` depending on the verification result. Otherwise it is set to `UNVERIFIED`.
+| `debug`                           | ~      | 1    | The flag that determines whether the instruction should output debug logs.
+
+</details>
+
+### 📄 `UpdateDataAccountAuthority`
+
+This instruction updates the `authority` of the Data Account by updating the value in the Metadata PDA Account. It requires both the old and new authority to be signers to prevent accidental transfers
+
+<details>
+  <summary>Accounts</summary>
+
+| Name                              | Writable | Signer | Description
+| --------------------------------- | :------: | :----: | --
+| `old_authority`                   |          |   ✅   | The old Authority of the Data Account.
+| `data`                            |          |        | The account that contains the data.
+| `pda`                             |    ✅    |        | The PDA account that contains the metadata.
+| `new_authority`                   |          |   ✅   | The new Authority of the Data Account.
+
+</details>
+
+<details>
+  <summary>Arguments</summary>
+
+| Argument                          | Offset | Size | Description
+| --------------------------------- | ------ | ---- | --
+| `debug`                           | 0      | 1    | The flag that determines whether the instruction should output debug logs.
+
+</details>
+
+### 📄 `FinalizeDataAccount`
+
+This instruction finalizes the data in the Data Account by setting the `data_status` in the Metadata PDA Account to be `FINALIZED`. Finalized data can no longer be updated.
+
+<details>
+  <summary>Accounts</summary>
+
+| Name                              | Writable | Signer | Description
+| --------------------------------- | :------: | :----: | --
+| `authority`                       |          |   ✅   | The Authority of the Data Account.
+| `data`                            |          |        | The account that contains the data.
+| `pda`                             |    ✅    |        | The PDA account that contains the metadata.
+
+</details>
+
+<details>
+  <summary>Arguments</summary>
+
+| Argument                          | Offset | Size | Description
+| --------------------------------- | ------ | ---- | --
+| `debug`                           | 0      | 1    | The flag that determines whether the instruction should output debug logs.
+
+</details>
+
+### 📄 `CloseDataAccount`
+
+This instruction closes the Data Account and the Metadata PDA Account and transfers the lamports to the `authority`.
+
+<details>
+  <summary>Accounts</summary>
+
+| Name                              | Writable | Signer | Description
+| --------------------------------- | :------: | :----: | --
+| `authority`                       |    ✅    |   ✅   | The Authority of the Data Account.
+| `data`                            |    ✅    |        | The account that contains the data.
+| `pda`                             |    ✅    |        | The PDA account that contains the metadata.
+
+</details>
+
+<details>
+  <summary>Arguments</summary>
+
+| Argument                          | Offset | Size | Description
+| --------------------------------- | ------ | ---- | --
+| `debug`                           | 0      | 1    | The flag that determines whether the instruction should output debug logs.
+
+</details>
+
 
 ## 🧑‍💻 Getting Started
 
