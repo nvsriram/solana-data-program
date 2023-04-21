@@ -23,7 +23,6 @@ An NFT that displays a number that can be changed via an on-chain program that e
 ```
 CONNECTION_URL=https://api.devnet.solana.com # if deployed on devnet
 CLUSTER=devnet # if deployed on devnet
-DATA_PROGRAM_ID=ECQd7f4sYhcWX5G9DQ7Hgcf3URZTfgwVwjKzH2sMQeFW # if deployed on devnet
 LUCK_PROGRAM_ID=<REPLACE WITH PROGRAM ID OF THE DEPLOYED RUST PROGRAM>
 AUTHORITY_PRIVATE=<REPLACE WITH PRIVATE KEY OF AUTHORITY WALLET>
 BASE_URL=https://sold-website.vercel.app

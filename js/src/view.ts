@@ -1,23 +1,16 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { DataProgram } from "../src/util/utils";
-import { DataTypeOption } from "./util/types";
+import { DataProgram, DataTypeOption } from "solana-data-program";
 
-const main = async (
-  connection: Connection,
-  dataPK: PublicKey,
-  debug?: boolean
-) => {
+const main = async (connection: Connection, dataPK: PublicKey) => {
   console.log("Data Account:", dataPK.toBase58());
-  const details = await DataProgram.parseDetails(
-    connection,
-    dataPK,
-    "confirmed",
-    debug
-  );
-  console.log(JSON.stringify(details.meta, null, 2));
-  if (details.meta.data_type === DataTypeOption.JSON) {
-    if (details.data) {
-      console.log(JSON.stringify(JSON.parse(details.data.toString()), null, 2));
+  const [meta, data] = await Promise.all([
+    DataProgram.parseMetadata(connection, dataPK, "confirmed"),
+    DataProgram.parseData(connection, dataPK, "confirmed"),
+  ]);
+  console.log(JSON.stringify(meta, null, 2));
+  if (meta.dataType === DataTypeOption.JSON) {
+    if (data) {
+      console.log(JSON.stringify(JSON.parse(data.toString()), null, 2));
     }
   }
 };

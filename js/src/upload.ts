@@ -1,13 +1,12 @@
 import {
-  Connection,
-  sendAndConfirmTransaction,
-  Keypair,
-  Transaction,
   ConfirmOptions,
+  Connection,
+  Keypair,
   PublicKey,
+  Transaction,
+  sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import { DataProgram } from "../src/util/utils";
-import { DataTypeOption } from "../src/util/types";
+import { DataProgram, DataTypeOption } from "solana-data-program";
 
 const PART_SIZE = 881;
 
@@ -39,7 +38,8 @@ const main = async (
       } as ConfirmOptions
     );
 
-    const [initializeIx, newPDA] = DataProgram.initializeDataAccount(
+    const [newPDA] = DataProgram.getPDA(newAccount.publicKey);
+    const initializeIx = DataProgram.initializeDataAccount(
       feePayer.publicKey,
       newAccount.publicKey,
       feePayer.publicKey,
@@ -83,10 +83,11 @@ const main = async (
       DataProgram.updateDataAccount(
         feePayer.publicKey,
         dataAccount,
-        pda,
         dataType,
         part,
-        offset
+        offset,
+        false,
+        false
       )
     );
     allTxs.push(tx);

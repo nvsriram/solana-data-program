@@ -9,17 +9,30 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
+import BN from "bn.js";
 import * as bs58 from "bs58";
 import * as dotenv from "dotenv";
-import BN from "bn.js";
-import { PDA_SEED } from "../../../../js/src/util/utils";
+import { DataProgram, programId as dataProgramId } from "solana-data-program";
 
 dotenv.config();
 
 const main = async () => {
+  const shouldMint = process.argv.indexOf("--mint") > -1;
+  const updateMetadata = process.argv.indexOf("--update-metadata") > -1;
+  const appendMetadata = process.argv.indexOf("--append-metadata") > -1;
+  const shouldUpdate = process.argv.indexOf("--update") > -1;
+
+  if (!shouldMint && !updateMetadata && !appendMetadata && !shouldUpdate) {
+    console.error("no argument flag passed");
+    return;
+  }
+
   // Public Key of NFT Quine Sphere and NFT Metadata
   const quineSphere = "HoyEJgwKhQG1TPRB2ziBU9uGziwy4f25kDcnKDNgsCkg";
-  const quineMetadata = "2YHSuwuH7PqKLcKKqVAUjTGYYsGwaGYTGbsgZYBtYrsw";
+  const quineMetadata = "Hb9vkWax5AeLWvCtYSjSvWrN6gTw324gKMa28kcBsgT3";
+
+  const METADATA_UPDATE_IDENTIFIER = `"value":"`;
+  const METADATA_APPEND_IDENTIFIER = `],"properties":`;
 
   const cluster = process.env.CLUSTER as string;
 
@@ -29,43 +42,77 @@ const main = async () => {
   );
 
   // mint Quine Sphere NFT with metadata
-  const base = process.env.BASE_URL as string;
-  const api = process.env.DATA_ROUTE as string;
-  const metaplex = Metaplex.make(connection).use(keypairIdentity(wallet));
-  metaplex
-    .nfts()
-    .create(
-      {
-        uri: `${base}${api}${quineMetadata}?cluster=${cluster}`,
-        name: "Solana Quine Sphere NFT",
-        sellerFeeBasisPoints: 0,
-      },
-      {
-        commitment: "confirmed",
-      }
-    )
-    .then(({ nft }) => {
-      console.log(nft);
-    });
+  if (shouldMint) {
+    const base = process.env.BASE_URL as string;
+    const api = process.env.DATA_ROUTE as string;
+    const metaplex = Metaplex.make(connection).use(keypairIdentity(wallet));
+    metaplex
+      .nfts()
+      .create(
+        {
+          uri: `${base}${api}${quineMetadata}?cluster=${cluster}`,
+          name: "Solana Quine Sphere NFT",
+          sellerFeeBasisPoints: 0,
+        },
+        {
+          commitment: "confirmed",
+        }
+      )
+      .then(({ nft }) => {
+        console.log(nft);
+      });
+  }
 
-  const dataProgramId = new PublicKey(process.env.DATA_PROGRAM_ID as string);
   const quineProgramId = new PublicKey(process.env.QUINE_PROGRAM_ID as string);
   const feePayer = wallet;
 
   // data account of NFT image
   const dataAccount = new PublicKey(quineSphere);
-  const [pdaData] = PublicKey.findProgramAddressSync(
-    [Buffer.from(PDA_SEED, "ascii"), dataAccount.toBuffer()],
-    dataProgramId
-  );
+  const [pdaData] = DataProgram.getPDA(dataAccount);
 
   // data account of NFT metadata JSON
   const metadataAccount = new PublicKey(quineMetadata);
-  const [pdaMeta] = PublicKey.findProgramAddressSync(
-    [Buffer.from(PDA_SEED, "ascii"), metadataAccount.toBuffer()],
-    dataProgramId
+  const [pdaMeta] = DataProgram.getPDA(metadataAccount);
+
+  // calculate metadata update and append offsets
+  let updateOffset: number = 322;
+  let appendOffset: number = 180;
+
+  const metadataBuffer = await DataProgram.parseData(
+    connection,
+    new PublicKey(quineMetadata),
+    "confirmed"
   );
-  const metadataUpdateOffset = new BN(322).toArrayLike(Buffer, "le", 8);
+
+  if (!metadataBuffer) {
+    console.error("invalid metadata account");
+    return;
+  }
+
+  try {
+    const metadataJSON = JSON.stringify(JSON.parse(metadataBuffer.toString()));
+    updateOffset = metadataJSON.indexOf(METADATA_UPDATE_IDENTIFIER);
+    appendOffset = metadataJSON.indexOf(METADATA_APPEND_IDENTIFIER);
+
+    if (updateOffset === -1 || appendOffset === -1) {
+      console.error("invalid metadata JSON");
+      return;
+    }
+
+    appendOffset = metadataJSON.length - appendOffset;
+    updateOffset += METADATA_UPDATE_IDENTIFIER.length;
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error(err.message);
+    }
+    return;
+  }
+
+  const metadataUpdateOffset = new BN(updateOffset).toArrayLike(
+    Buffer,
+    "le",
+    8
+  );
   const updateQuineMetadataIx = new TransactionInstruction({
     keys: [
       {
@@ -101,7 +148,7 @@ const main = async () => {
     ]),
   });
 
-  const metadataEndOffset = new BN(180).toArrayLike(Buffer, "le", 8);
+  const metadataEndOffset = new BN(appendOffset).toArrayLike(Buffer, "le", 8);
   const appendQuineMetadataIx = new TransactionInstruction({
     keys: [
       {
@@ -167,18 +214,31 @@ const main = async () => {
     data: Buffer.concat([Buffer.from(new Uint8Array([2])), colorUpdateOffset]),
   });
 
-  // update, append metadata + update color
   const tx = new Transaction();
-  tx.add(updateQuineMetadataIx)
-    .add(appendQuineMetadataIx)
-    .add(updateQuineColorIx);
 
-  const txid = await sendAndConfirmTransaction(connection, tx, [feePayer], {
-    skipPreflight: true,
-    preflightCommitment: "confirmed",
-    confirmation: "confirmed",
-  } as ConfirmOptions);
-  console.log(`https://explorer.solana.com/tx/${txid}?cluster=${cluster}`);
+  // update metadata
+  if (updateMetadata) {
+    tx.add(updateQuineMetadataIx);
+  }
+
+  // append metadata
+  if (appendMetadata) {
+    tx.add(appendQuineMetadataIx);
+  }
+
+  // update color
+  if (shouldUpdate) {
+    tx.add(updateQuineColorIx);
+  }
+
+  if (tx.instructions.length > 0) {
+    const txid = await sendAndConfirmTransaction(connection, tx, [feePayer], {
+      skipPreflight: true,
+      preflightCommitment: "confirmed",
+      confirmation: "confirmed",
+    } as ConfirmOptions);
+    console.log(`https://explorer.solana.com/tx/${txid}?cluster=${cluster}`);
+  }
 };
 
 main()

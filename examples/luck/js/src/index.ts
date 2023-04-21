@@ -11,7 +11,7 @@ import {
 } from "@solana/web3.js";
 import * as bs58 from "bs58";
 import * as dotenv from "dotenv";
-import { PDA_SEED } from "../../../../js/src/util/utils";
+import { DataProgram, programId as dataProgramId } from "solana-data-program";
 
 dotenv.config();
 
@@ -51,16 +51,12 @@ const main = async () => {
       });
   }
 
-  const dataProgramId = new PublicKey(process.env.DATA_PROGRAM_ID as string);
   const luckProgramId = new PublicKey(process.env.LUCK_PROGRAM_ID as string);
   const feePayer = wallet;
 
   // data account of NFT image
   const dataAccount = new PublicKey(luckImage);
-  const [pdaData] = PublicKey.findProgramAddressSync(
-    [Buffer.from(PDA_SEED, "ascii"), dataAccount.toBuffer()],
-    dataProgramId
-  );
+  const [pdaData] = DataProgram.getPDA(dataAccount);
 
   const testLuckIx = new TransactionInstruction({
     keys: [

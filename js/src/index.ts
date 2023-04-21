@@ -3,8 +3,8 @@ import * as bs58 from "bs58";
 import * as dotenv from "dotenv";
 import { readFileSync } from "fs";
 import { lookup } from "mime-types";
+import { DataTypeOption } from "solana-data-program";
 import uploadData from "./upload";
-import { DataTypeOption } from "./util/types";
 import viewData from "./view";
 
 dotenv.config();
@@ -29,7 +29,6 @@ const main = async () => {
   const connection = new Connection(process.env.CONNECTION_URL as string);
 
   // Command line argument checks
-  const debug = process.argv.indexOf("--debug") > -1;
   const dynamic = process.argv.indexOf("--dynamic") > -1;
   const dataAccountIdx = process.argv.indexOf("--account");
   let dataPK: PublicKey | undefined;
@@ -56,7 +55,7 @@ const main = async () => {
       console.error("Missing data account");
       return;
     }
-    await viewData(connection, dataPK, debug);
+    await viewData(connection, dataPK);
     return;
   }
 

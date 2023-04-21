@@ -1,4 +1,3 @@
-import { keypairIdentity, Metaplex } from "@metaplex-foundation/js";
 import {
   ConfirmOptions,
   Connection,
@@ -9,14 +8,16 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import BN from "bn.js";
 import * as bs58 from "bs58";
-import { writeFileSync } from "fs";
 import * as dotenv from "dotenv";
-import { PDA_SEED } from "../../../../js/src/util/utils";
-import { DataTypeOption } from "../../../../js/src/util/types";
-import { svgs } from "./svgs";
+import { writeFileSync } from "fs";
+import {
+  DataProgram,
+  programId as dataProgramId,
+  DataTypeOption,
+} from "solana-data-program";
 import { svgPKs } from "./svg-pubkeys";
+import { svgs } from "./svgs";
 
 dotenv.config();
 
@@ -377,8 +378,6 @@ const uploadSVGParts = async () => {
     bs58.decode(process.env.AUTHORITY_PRIVATE as string)
   );
 
-  const dataProgramId = new PublicKey(process.env.DATA_PROGRAM_ID as string);
-
   const accounts: any = {};
   for (const [key, svg] of Object.entries(svgs)) {
     for (const str of svg) {
@@ -387,96 +386,25 @@ const uploadSVGParts = async () => {
       }
 
       const dataAccount = new Keypair();
-      const [pda] = PublicKey.findProgramAddressSync(
-        [Buffer.from(PDA_SEED, "ascii"), dataAccount.publicKey.toBuffer()],
-        dataProgramId
-      );
       const data = Buffer.from(str, "ascii");
-      const idx0 = Buffer.from(new Uint8Array([0]));
-      const space = new BN(str.length).toArrayLike(Buffer, "le", 8);
-      const dynamic = Buffer.from(new Uint8Array(1));
-      const authority = wallet.publicKey.toBuffer();
-      const is_created = Buffer.from(new Uint8Array([0]));
-      const false_flag = Buffer.from(new Uint8Array([0]));
-      const initializeIx = new TransactionInstruction({
-        keys: [
-          {
-            pubkey: wallet.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-          {
-            pubkey: dataAccount.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-          {
-            pubkey: pda,
-            isSigner: false,
-            isWritable: true,
-          },
-          {
-            pubkey: SystemProgram.programId,
-            isSigner: false,
-            isWritable: false,
-          },
-        ],
-        programId: dataProgramId,
-        data: Buffer.concat([
-          idx0,
-          authority,
-          space,
-          dynamic,
-          is_created,
-          false_flag,
-        ]),
-      });
-
-      const idx1 = Buffer.from(new Uint8Array([1]));
-      const offset_buffer = new BN(0).toArrayLike(Buffer, "le", 8);
-      const true_flag = Buffer.from(new Uint8Array([1]));
-      const data_type = new BN(DataTypeOption.CUSTOM).toArrayLike(
-        Buffer,
-        "le",
-        1
+      const initializeIx = DataProgram.initializeDataAccount(
+        wallet.publicKey,
+        dataAccount.publicKey,
+        wallet.publicKey,
+        false,
+        true,
+        str.length
       );
-      const data_len = new BN(str.length).toArrayLike(Buffer, "le", 4);
-      const updateIx = new TransactionInstruction({
-        keys: [
-          {
-            pubkey: wallet.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-          {
-            pubkey: dataAccount.publicKey,
-            isSigner: false,
-            isWritable: true,
-          },
-          {
-            pubkey: pda,
-            isSigner: false,
-            isWritable: true,
-          },
-          {
-            pubkey: SystemProgram.programId,
-            isSigner: false,
-            isWritable: false,
-          },
-        ],
-        programId: dataProgramId,
-        data: Buffer.concat([
-          idx1,
-          data_type,
-          data_len,
-          data,
-          offset_buffer,
-          false_flag,
-          true_flag,
-          false_flag,
-        ]),
-      });
-
+      const updateIx = DataProgram.updateDataAccount(
+        wallet.publicKey,
+        dataAccount.publicKey,
+        DataTypeOption.CUSTOM,
+        data,
+        0,
+        false,
+        true,
+        false
+      );
       const tx = new Transaction();
       tx.add(initializeIx);
       const txid = await sendAndConfirmTransaction(
@@ -546,7 +474,6 @@ const main = async () => {
     bs58.decode(process.env.AUTHORITY_PRIVATE as string)
   );
 
-  const dataProgramId = new PublicKey(process.env.DATA_PROGRAM_ID as string);
   const identityProgramId = new PublicKey(
     process.env.IDENTITY_PROGRAM_ID as string
   );
@@ -556,17 +483,11 @@ const main = async () => {
   let dataAccount: PublicKey;
   let pdaData: PublicKey;
   if (dataAccountIdx === -1) {
-    const dataAccountKP = new Keypair();
-    const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(
+    const [createIx, dataAccountKP] = await DataProgram.createDataAccount(
+      connection,
+      feePayer.publicKey,
       200
     );
-    const createIx = SystemProgram.createAccount({
-      fromPubkey: feePayer.publicKey,
-      newAccountPubkey: dataAccountKP.publicKey,
-      lamports: rentExemptAmount,
-      space: 200,
-      programId: dataProgramId,
-    });
     const createTx = new Transaction();
     createTx.add(createIx);
     const createTxid = await sendAndConfirmTransaction(
@@ -583,49 +504,15 @@ const main = async () => {
       `create: https://explorer.solana.com/tx/${createTxid}?cluster=${cluster}`
     );
 
-    [pdaData] = PublicKey.findProgramAddressSync(
-      [Buffer.from(PDA_SEED, "ascii"), dataAccountKP.publicKey.toBuffer()],
-      dataProgramId
+    [pdaData] = DataProgram.getPDA(dataAccountKP.publicKey);
+    const initializeIx = DataProgram.initializeDataAccount(
+      wallet.publicKey,
+      dataAccountKP.publicKey,
+      wallet.publicKey,
+      true,
+      true,
+      200
     );
-    const idx0 = Buffer.from(new Uint8Array([0]));
-    const space = new BN(200).toArrayLike(Buffer, "le", 8);
-    const dynamic = Buffer.from(new Uint8Array([1]));
-    const authority = wallet.publicKey.toBuffer();
-    const is_created = Buffer.from(new Uint8Array([1]));
-    const false_flag = Buffer.from(new Uint8Array([0]));
-    const initializeIx = new TransactionInstruction({
-      keys: [
-        {
-          pubkey: wallet.publicKey,
-          isSigner: true,
-          isWritable: true,
-        },
-        {
-          pubkey: dataAccountKP.publicKey,
-          isSigner: true,
-          isWritable: true,
-        },
-        {
-          pubkey: pdaData,
-          isSigner: false,
-          isWritable: true,
-        },
-        {
-          pubkey: SystemProgram.programId,
-          isSigner: false,
-          isWritable: false,
-        },
-      ],
-      programId: dataProgramId,
-      data: Buffer.concat([
-        idx0,
-        authority,
-        space,
-        dynamic,
-        is_created,
-        false_flag,
-      ]),
-    });
     const initializeTx = new Transaction();
     initializeTx.add(initializeIx);
     const initializeTxid = await sendAndConfirmTransaction(
@@ -644,10 +531,7 @@ const main = async () => {
     dataAccount = dataAccountKP.publicKey;
   } else {
     dataAccount = new PublicKey(process.argv[dataAccountIdx + 1]);
-    [pdaData] = PublicKey.findProgramAddressSync(
-      [Buffer.from(PDA_SEED, "ascii"), dataAccount.toBuffer()],
-      dataProgramId
-    );
+    [pdaData] = DataProgram.getPDA(dataAccount);
   }
 
   const identity = new PublicKey(process.argv[identityIdx + 1]).toBuffer();

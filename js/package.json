@@ -22,6 +22,7 @@
     "dotenv": "^16.0.3",
     "mime-types": "^2.1.35",
     "pg": "^8.7.3",
+    "solana-data-program": "^0.0.1",
     "typescript": "^4.9.5"
   }
 }
