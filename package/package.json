@@ -1,6 +1,6 @@
 {
 	"name": "solana-data-program",
-	"version": "1.0.1",
+	"version": "1.0.3",
 	"description": "Solana Data Program SDK",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",

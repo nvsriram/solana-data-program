@@ -150,6 +150,17 @@ const closeTx = new Transaction();
 closeTx.add(closeIx);
 ```
 
+### To get a Data Account's metadata and data
+
+```javascript
+// extract Data Account's metadata
+const meta = await DataProgram.parseMetadata(connection, dataKey, "confirmed");
+console.log(meta);
+// extract Data Account's data
+const data = await DataProgram.parseData(connection, dataKey, "confirmed");
+console.log(data);
+```
+
 ## `DataProgram` Class
 
 The **`DataProgram`** class has the following methods:
@@ -185,9 +196,15 @@ The **`DataProgram`** class has the following methods:
 
   - Returns instruction to close the Metadata PDA Account and Data Account and recover their lamports.
 
+- **`parseMetadataFromAccountInfo`**:
+
+  - Returns the parsed metadata from the associated Metadata PDA AccountInfo.
+  - **NOTE**: This function can be called to parse the output of `getAccountInfo()` using the Metadata PDA Account.
+  - Returns the metadata in the form of an [**`IDataAccountMeta`**](#idataaccountmeta-object) object
+
 - **`parseMetadata`**:
 
-  - Parses the Data Account's metadata from the data of its associated Metadata PDA Account.
+  - Returns the parsed metadata from the associated Metadata PDA Account.
   - Returns the metadata in the form of an [**`IDataAccountMeta`**](#idataaccountmeta-object) object
 
 - **`parseData`**:

@@ -1,4 +1,5 @@
 import {
+	AccountInfo,
 	Commitment,
 	Connection,
 	Keypair,
@@ -408,26 +409,20 @@ export class DataProgram {
 	};
 
 	/**
-	 * Parses the Data Account's metadata from the data of its associated Metadata PDA Account.
+	 * Returns the parsed metadata from the associated Metadata PDA AccountInfo.
 	 *
-	 * @param {Connection} connection
-	 * @param {PublicKey} dataKey
-	 * @param {Commitment} commitment
-	 * @return {Promise<IDataAccountMeta>}
+	 * **NOTE**: This function can be called to parse the output of `getAccountInfo()`
+	 * using the Metadata PDA Account.
+	 *
+	 * @param {AccountInfo<Buffer> | null} metadataInfo
+	 * @return {IDataAccountMeta}
 	 */
-	static parseMetadata = async (
-		connection: Connection,
-		dataKey: PublicKey,
-		commitment: Commitment
-	): Promise<IDataAccountMeta> => {
-		const [metaKey] = this.getPDA(dataKey);
-		const metadataAccount = await connection.getAccountInfo(
-			metaKey,
-			commitment
-		);
+	static parseMetadataFromAccountInfo = (
+		metadataInfo: AccountInfo<Buffer> | null
+	): IDataAccountMeta => {
 		const accountMeta = {} as IDataAccountMeta;
-		if (metadataAccount && metadataAccount.data.length > 0) {
-			const metadata = metadataAccount.data;
+		if (metadataInfo && metadataInfo.data.length > 0) {
+			const metadata = metadataInfo.data;
 			accountMeta.dataStatus = metadata.subarray(0, 1).readUInt8();
 			accountMeta.serializationStatus = metadata.subarray(1, 2).readUInt8();
 			accountMeta.authority = new PublicKey(
@@ -445,6 +440,27 @@ export class DataProgram {
 		}
 
 		return accountMeta;
+	};
+
+	/**
+	 * Returns the parsed metadata from the associated Metadata PDA Account.
+	 *
+	 * @param {Connection} connection
+	 * @param {PublicKey} dataKey
+	 * @param {Commitment} commitment
+	 * @return {Promise<IDataAccountMeta>}
+	 */
+	static parseMetadata = async (
+		connection: Connection,
+		dataKey: PublicKey,
+		commitment: Commitment
+	): Promise<IDataAccountMeta> => {
+		const [metaKey] = this.getPDA(dataKey);
+		const metadataAccount = await connection.getAccountInfo(
+			metaKey,
+			commitment
+		);
+		return this.parseMetadataFromAccountInfo(metadataAccount);
 	};
 
 	/**
