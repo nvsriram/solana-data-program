@@ -4,6 +4,6 @@
     "@types/bn.js": "^5.1.1",
     "bn.js": "^5.2.1",
     "dotenv": "^16.0.3",
-    "solana-data-program": "^0.0.2"
+    "solana-data-program": "^1.0.1"
   }
 }

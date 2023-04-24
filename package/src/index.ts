@@ -80,7 +80,7 @@ export interface IDataAccountMeta {
 	dataVersion: number;
 
 	/** Data type of the data stored in the Data Account */
-	dataType: number;
+	dataType: DataTypeOption;
 
 	/** Bump seed used to derive the Metadata PDA Account */
 	bumpSeed: number;
@@ -110,9 +110,10 @@ export class DataProgram {
 	};
 
 	/**
-	 *  Creates a new `Keypair` for the Data Account and a
-	 *  `SystemProgram.createAccount` instruction with lamports
-	 *  the rent exempt amount for the Data Account.
+	 * Creates a new `Keypair` for the Data Account and returns a
+	 * `SystemProgram.createAccount` instruction with the rent exempt
+	 * amount of lamports for the Data Account and the Data Account's
+	 * `Keypair`
 	 *
 	 * @param {Connection} connection
 	 * @param {PublicKey} feePayer
@@ -139,7 +140,7 @@ export class DataProgram {
 	};
 
 	/**
-	 * Creates instruction to create and initialize the Data Account and associated
+	 * Returns instruction to create and initialize the Data Account and associated
 	 * Metadata PDA Account.
 	 *
 	 * **NOTE**: This instruction can also be called using a previously created account to treat it as a Data Account.
@@ -206,7 +207,7 @@ export class DataProgram {
 	};
 
 	/**
-	 * Creates instruction to update the data type and data of a Data Account.
+	 * Returns instruction to update the data type and data of a Data Account.
 	 *
 	 * @param {PublicKey} authority Authority of the Data Account.
 	 * @param {PublicKey} dataAccount
@@ -274,7 +275,7 @@ export class DataProgram {
 	};
 
 	/**
-	 * Creates instruction to update the authority of a Data Account.
+	 * Returns instruction to update the authority of a Data Account.
 	 *
 	 * **NOTE**: This instruction requires both the old and new authority
 	 * to be signers to prevent accidental transfers.
@@ -324,7 +325,7 @@ export class DataProgram {
 	};
 
 	/**
-	 * Creates instruction to finalize the data of a Data Account.
+	 * Returns instruction to finalize the data of a Data Account.
 	 *
 	 * **NOTE**: Finalized data can no longer be updated.
 	 *
@@ -366,7 +367,7 @@ export class DataProgram {
 	};
 
 	/**
-	 * Creates instruction to close the Metadata PDA Account and Data Account and recover
+	 * Returns instruction to close the Metadata PDA Account and Data Account and recover
 	 * their lamports.
 	 *
 	 * @param {PublicKey} authority Authority of the Data Account.
@@ -447,7 +448,7 @@ export class DataProgram {
 	};
 
 	/**
-	 * Extracts the Data Account's data.
+	 * Returns the Data Account's data.
 	 *
 	 * @param {Connection} connection
 	 * @param {PublicKey} dataKey
