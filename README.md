@@ -173,6 +173,21 @@ This instruction closes the Data Account and the Metadata PDA Account and transf
 
 ## 🧑‍💻 Getting Started
 
+### Typescript SDK
+
+- Follow the instructions in the `package` directory on how to install and use the [`solana-data-program`](https://www.npmjs.com/package/solana-data-program) SDK
+- tl;dr:
+  - **Installation**:
+    ```shell
+    npm i solana-data-program
+    ```
+  - **Usage**:
+    ```javascript
+    import { DataProgram } from "solana-data-program";
+    ```
+
+### CLI
+
 1. Navigate to the `js` directory and install all dependencies using `npm install`
 2. Create a `.env` file and add the following to it:
 
