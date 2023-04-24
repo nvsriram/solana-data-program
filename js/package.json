@@ -6,20 +6,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@metaplex-foundation/js": "^0.18.3",
     "@solana/web3.js": "^1.31.0",
-    "@types/bn.js": "^5.1.1",
     "@types/mime-types": "^2.1.1",
     "@types/node": "^18.11.18",
-    "@types/pg": "^8.6.6",
-    "bn.js": "^5.2.0",
-    "borsh": "^0.7.0",
     "bs58": "^5.0.0",
-    "denque": "^2.1.0",
     "dotenv": "^16.0.3",
     "mime-types": "^2.1.35",
-    "pg": "^8.7.3",
-    "solana-data-program": "^1.0.1",
-    "typescript": "^4.9.5"
+    "solana-data-program": "^1.0.3"
   }
 }

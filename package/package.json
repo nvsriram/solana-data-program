@@ -1,6 +1,6 @@
 {
 	"name": "solana-data-program",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "Solana Data Program SDK",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
@@ -33,7 +33,6 @@
 	"devDependencies": {
 		"@types/bn.js": "^5.1.1",
 		"@types/bs58": "^4.0.1",
-		"@types/node-fetch": "^2.6.3",
 		"bs58": "^5.0.0",
 		"dotenv": "^16.0.3",
 		"prettier": "^2.8.7",
