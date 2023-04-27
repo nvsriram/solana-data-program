@@ -41,7 +41,7 @@ The Data Account stores the data as a raw data byte array.
 
 ### 📄 `InitializeDataAccount`
 
-This instruction creates and initializes the Metadata Account and optionally creates a Data Account.
+This instruction creates and initializes the Metadata PDA Account and optionally creates a Data Account.
 
 <details>
   <summary>Accounts</summary>
